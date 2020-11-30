@@ -1,0 +1,4 @@
+#!/bin/bash
+
+julia main.jl > tmp
+sxiv plot.png
