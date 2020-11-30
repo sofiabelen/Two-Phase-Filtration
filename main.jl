@@ -1,3 +1,22 @@
+## Physics:
+##
+## We simulate 2d cavity flow for compressible fluid,
+## more precisely, for an ideal gas at constant temperature.
+## Therefore, from the equation of state, we know that
+## P / ρ = 1 (if we choose the units such that the constants
+## terms are reduced to 1). 
+## 
+## The equations used are the continuity and the momentum equations
+## First order discretization schemes are used.
+##
+## The velocity in the x-direction on the top is constant,
+## there are walls on the bottom, left and right edges.
+##
+## →→→→→→→→
+## |      |
+## |      |
+## --------
+
 using PyPlot
 
 ## Time steps
