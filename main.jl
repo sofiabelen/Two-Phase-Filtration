@@ -79,10 +79,10 @@ for t = 1 : nt
     end
 
     ## Enforcing boundary conditions for ρ
-    for j = 1 : ny
-        global ρ[1, j] = ρ[2, j]
-        global ρ[nx, j] = ρ[nx - 1, j]
-    end
+    # for j = 1 : ny
+    #     global ρ[1, j] = ρ[2, j]
+    #     global ρ[nx, j] = ρ[nx - 1, j]
+    # end
 
     for i = 1 : nx
         global ρ[i, 1] = ρ[i, 2]
