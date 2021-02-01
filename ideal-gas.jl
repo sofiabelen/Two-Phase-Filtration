@@ -7,7 +7,6 @@
 ## terms are reduced to 1). 
 ## 
 ## The equations used are the continuity and the momentum equations
-## First order discretization schemes are used.
 ##
 ## The velocity in the x-direction on the top is constant,
 ## there are walls on the bottom, left and right edges.
@@ -20,7 +19,7 @@
 using PyPlot
 
 ## Time steps
-duration = 5.0
+duration = 10.0
 Δt = 0.001
 nsteps = convert(Int64, duration / Δt)
 
@@ -42,7 +41,7 @@ u0 = 0.05
 ## Initial conditions:
 ## u = u0 = 0.05 at y = 2
 ## v⃗ = (u, v) = 0⃗ everywhere else
-## ρ = p = p0 everywhere (Atmospheric pressure?)
+## ρ = p = p0 everywhere (Atmospheric pressure)
 ##
 ## Boundary conditions:
 ## u = 1 at y = 2
@@ -54,20 +53,13 @@ u = zeros(nx, ny)
 v = zeros(nx, ny)
 ρ = zeros(nx, ny)
 
-for i = 1 : nx
-    for j = 1: ny
-        ρ[i, j] = p0
-    end
-end
-
-for i = 1 : nx
-    u[i, ny] = u0
-end
+ρ[:, :] .= p0
+u[:, ny] .= u0
 
 function update!(ρnext, unext, vnext, ρwork, uwork, vwork,
         Δt, Δx, Δy, u0, ν, nx, ny)
-    for i = 1 : nx - 1
-        for j = 1 : ny - 1
+    for j = 2 : ny - 1
+        for i = 2 : nx - 1
             ## Auxiliary variables to avoid typos when
             ## working with partial derivatives
             ##
@@ -79,45 +71,47 @@ function update!(ρnext, unext, vnext, ρwork, uwork, vwork,
     
             ρc = ρwork[i, j]
             ρe = ρwork[i + 1, j]
+            ρw = ρwork[i - 1, j]
             ρn = ρwork[i, j + 1]
+            ρs = ρwork[i, j - 1]
     
             uc = uwork[i, j]
             ue = uwork[i + 1, j]
-            un = uwork[i, j + 1]
+            uw = uwork[i - 1, j]
     
             vc = vwork[i, j]
-            ve = vwork[i + 1, j]
             vn = vwork[i, j + 1]
+            vs = vwork[i, j - 1]
     
             ## Continuity equation to calculate ρ
             ## ∂ρ / ∂t + div(ρv⃗) = 0
-            ρnext[i, j] = ρc - Δt * (uc * (ρe - ρc) / Δx +
-                                     vc * (ρn - ρc) / Δy +
-                                     ρc * (ue - uc) / Δx +
-                                     ρc * (vn - vc) / Δy)
+            ρnext[i, j] = ρc - Δt * (uc * (ρe - ρw) / (2.0 * Δx) +
+                                     vc * (ρn - ρs) / (2.0 * Δy) +
+                                     ρc * (ue - uw) / (2.0 * Δx) +
+                                     ρc * (vn - vs) / (2.0 * Δy))
 
         end
     end
     
-    ## Enforcing boundary conditions for ρ
-    for j = 1 : ny
-        ρnext[1, j] = ρnext[2, j]
-        ρnext[nx, j] = ρnext[nx - 1, j]
-    end
+    ## Question about view: https://stackoverflow.com/questions/65979923/what-is-happening-behind-the-scenes-in-julias-view-function-a3-viewa
+
+    ## Enforcing boundary conditions for ρ = P
+    ρnext[1, :] = @view ρnext[2, :]
+    ρnext[nx, :] = @view ρnext[nx - 1, :]
     
-    for i = 1 : nx
-        ρnext[i, 1] = ρnext[i, 2]
-        ρnext[i, ny] = p0
-    end
+    ρnext[:,  1] = @view ρnext[:, 2]
+    ρnext[:, ny] .= p0
     
     ## Here we use a central difference scheme to discretize the second
     ## order derivatives, so we iterate over the 'inner' grid
-    for i = 2 : nx - 1
-        for j = 2 : ny - 1
+    for j = 2 : ny - 1
+        for i = 2 : nx - 1
             ## Auxiliar variables
             ρc = ρwork[i, j]
             ρe = ρwork[i + 1, j]
+            ρw = ρwork[i - 1, j]
             ρn = ρwork[i, j + 1]
+            ρs = ρwork[i, j - 1]
     
             uc = uwork[i, j]
             ue = uwork[i + 1, j]
@@ -131,23 +125,24 @@ function update!(ρnext, unext, vnext, ρwork, uwork, vwork,
             vn = vwork[i, j + 1]
             vs = vwork[i, j - 1]
     
-            ## Momentum equations 
+            ## Momentum equation
             ## ∂v⃗ / ∂t + (v⃗ ⋅∇)v⃗ = - (1 / ρ) ∇P + ν∇²v⃗
+            ## -> we later replace this by Darcy's law
             viscous_term_u = ν * ((uw - 2.0 * uc + ue) / Δx^2 +
                                   (un - 2.0 * uc + us) / Δy^2)
     
             viscous_term_v = ν * ((vw - 2.0 * vc + ve) / Δx^2 +
                                   (vn - 2.0 * vc + vs) / Δy^2)
     
-            pressure_term_u = -(1 / ρc) * (ρe - ρc) / Δx
+            pressure_term_u = -(1 / ρc) * (ρe - ρw) / (2.0 * Δx)
     
-            pressure_term_v = -(1 / ρc) * (ρn - ρc) / Δy
+            pressure_term_v = -(1 / ρc) * (ρn - ρs) / (2.0 * Δy)
     
-            inertia_term_u = uc * (ue - uc) / Δx +
-                             vc * (un - uc) / Δy
+            inertia_term_u = uc * (ue - uw) / (2.0 * Δx) +
+                             vc * (un - us) / (2.0 * Δy)
     
-            inertia_term_v = uc * (ve - vc) / Δx +
-                             vc * (vn - vc) / Δy
+                             inertia_term_v = uc * (ve - vw) / (2.0 * Δx) +
+                             vc * (vn - vs) / (2.0 * Δy- vw) / (2.0 * Δx)
     
             unext[i, j] = uc + Δt * (-inertia_term_u + pressure_term_u +
                                      viscous_term_u)
@@ -202,11 +197,10 @@ function plot(u, v, ρ)
     
     ## Velocity vector field
     ## scale = 100.0
-    ## quiver(x, y, u', v')
+    quiver(x, y, u', v')
     
     ## Streamplot of velocity vector field
-    streamplot(x, y, u', v')
-    contour(X, Y, ρ')
+    #streamplot(x, y, u', v')
     
     ## Density contour map
     pos = ax.contourf(X, Y, ρ', alpha=0.5, cmap=matplotlib.cm.viridis)
@@ -218,7 +212,8 @@ function plot(u, v, ρ)
     # PyPlot.svg(true)
     # savefig("plot.svg")
     
-    savefig("plot.png")
+    savefig("img/ideal-gas.png")
+    savefig("img/ideal-gas.svg")
 end
 
 ## Run our solver
