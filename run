@@ -1,4 +1,4 @@
 #!/bin/bash
 
-julia main.jl > tmp
-sxiv plot.png
+julia porous-medium-darcy.jl
+sxiv img/porous-medium-darcy.png
