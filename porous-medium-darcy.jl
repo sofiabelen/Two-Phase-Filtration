@@ -38,54 +38,21 @@
 ##
 ## Initial conditions:
 ## v⃗ = (u, v) = 0⃗ everywhere
-## P = Pin, Pout at x = 0, 2 (respectively)
 ## P = P0 everywhere else
 ##
 ## Boundary conditions:
-## ∂u / ∂x = 0 at x = 0, 2
-## P = Pin at x = 0
-## P = Pout at x = 2
-## u = 0 at y = 0, 2
+## u = 0 at x = 0, 2 (walls)
+## P = Pin at y = 0 and x ∈ [0, 1]
+## v = 0 at y = 0 and x ∈ [1, 2]
+## P = Pout, dv / dy = 0 at y = 2
 ## ∂P / ∂y = 0 at y = 0, 2
-## v = 0 at x = 0, 2 and y = 0, 2 (is this okay???)
 
-using PyPlot
+using DelimitedFiles, PyPlot
 
-## Time steps
-duration = 10.0
-Δt = 0.001
-nsteps = convert(Int64, duration / Δt)
-
-## Space grid [0, 2] × [0, 2]
-Δx = 0.05
-Δy = Δx
-nx = convert(Int64, 2.0 / Δx)
-ny = convert(Int64, 2.0 / Δy)
-
-## Porosity
-φ = 0.7
-
-## Specific permeability
-K = 1e-17
-
-## Dynamic viscocity (value used: air)
-μ = 0.018
-
-## Pressures at left and right side.
-Pin = 1.5
-Pout = 0.5
-P0 = 1.0
-
-u = zeros(nx, ny)
-v = zeros(nx, ny)
-ρ = zeros(nx, ny)
-
-for i = 2 : nx - 1
-    ρ[i, :] .= Pin + (Pout - Pin) * i / nx
-end
-
-function update!(ρnext, unext, vnext, ρwork, uwork, vwork,
-        Δt, Δx, Δy, nx, ny)
+function update!(; ρnext, unext, vnext, ρwork, uwork, vwork,
+        Δt, Δx, Δy, Pin, Pout, φ, K, μ)
+    nx, ny = size(ρnext)
+    coeff = 8.314 * 298 / 0.029
     for j = 2 : ny - 1
         for i = 2 : nx - 1
             ## Auxiliary variables to avoid typos when
@@ -113,22 +80,26 @@ function update!(ρnext, unext, vnext, ρwork, uwork, vwork,
     
             ## Continuity equation to calculate ρ
             ## φ ⋅∂ρ / ∂t + div(ρv⃗) = 0
-            ρnext[i, j] = ρc - Δt / φ * (uc * (ρe - ρw) / (2.0 * Δx) +
-                                     vc * (ρn - ρs) / (2.0 * Δy) +
-                                     ρc * (ue - uw) / (2.0 * Δx) +
-                                     ρc * (vn - vs) / (2.0 * Δy))
+            ρnext[i, j] = ρc - Δt / φ * (uc * (ρe - ρw) / (2 * Δx) +
+                                     vc * (ρn - ρs) / (2 * Δy) +
+                                     ρc * (ue - uw) / (2 * Δx) +
+                                     ρc * (vn - vs) / (2 * Δy))
         end
     end
-    
-    ## Question about view: https://stackoverflow.com/questions/65979923/what-is-happening-behind-the-scenes-in-julias-view-function-a3-viewa
 
-    ## Boundary conditions using ghost cells
-    ## ρ = ρleft, ρright at x = 0, 2
-    ρnext[1, :] .= 2.0 * Pin .- ρnext[2, :]
-    ρnext[nx, :] .= 2.0 * Pout .- ρ[nx - 1, :]
-    ## ∂ρ / ∂y = 0 at y = 0, 2
-    ρnext[:, ny] .= ρnext[:, ny - 2]
-    ρnext[:, 1] .= ρnext[:, 3]
+    ## Boundary conditions on pressure using ghost cells
+    ## P = Pin at y = 0 and x ∈ [0, 1]
+    @. @views ρnext[1: nx ÷ 2, 1] = 2 * Pin / coeff - ρnext[1: nx ÷ 2, 2]
+
+    ## P = Pout at y = 2
+    @. @views ρnext[:, ny] = 2 * Pout / coeff - ρnext[:, ny - 1]
+
+    ## ∂P / ∂x = 0 at x = 0, 2
+    @. @views ρnext[nx, :] = ρnext[nx - 1, :]
+    @. @views ρnext[1, :] = ρnext[2, :]
+
+    ## ∂P / ∂y = 0 at y = 0 x ∈ [1, 2]
+    @. @views ρnext[nx ÷ 2 + 1: nx, 1] = ρnext[nx ÷ 2 + 1: nx, 2]
     
     ## Here we use a central difference scheme to discretize the second
     ## order derivatives, so we iterate over the 'inner' grid
@@ -142,22 +113,28 @@ function update!(ρnext, unext, vnext, ρwork, uwork, vwork,
     
             ## Darcy's law
             ## v⃗ = -μ⁻¹ K̂ ⋅∇P
-            unext[i, j] = -K / μ * (ρe - ρw) / (2 * Δx)
+            unext[i, j] = -K / μ * coeff * (ρe - ρw) / (2 * Δx)
     
-            vnext[i, j] = -K / μ * (ρn - ρs) / (2 * Δy)
+            vnext[i, j] = -K / μ * coeff * (ρn - ρs) / (2 * Δy)
         end
     end
 
-    ## Boundary conditions on u, again using ghost cells
-    ## ∂u / ∂x = 0 at x = 0, 2
-    unext[1, :] = unext[3, :]
-    unext[nx, :] = unext[nx - 2, :]
-    ## u = 0 at y = 0, 2
-    u[:, ny] = -u[:, ny - 1]
-    u[:, 1] = -u[:, 2]
+    ## Boundary conditions on velocity, again using ghost cells
+    ## u = 0 at x = 0, 2 (walls)
+    @. @views unext[1, :] = -unext[2, :]
+    @. @views unext[nx, :] = -unext[nx - 1, :]
+
+    ## v = 0 at y = 0 and x ∈ [1, 2]
+    @. @views vnext[1, nx ÷ 2 + 1: nx] = -vnext[2, nx ÷ 2 + 1: nx]
+
+    ## dv / dy = 0 at y = 2
+    @views vnext[:, ny] = vnext[:, ny - 1]
+
+    ## dv / dy = 0 at y = 0 and x ∈ [0, 1]
+    @views vnext[1: nx ÷ 2, 1] =  vnext[1: nx ÷ 2, 2]
 end
 
-function filtration!(ρ, u, v, Δx, Δy, Δt, nsteps, nx, ny)
+function filtration!(; ρ, u, v, Δx, Δy, Δt, nsteps, K, φ, μ, Pin, Pout)
     ## Helper arrays to store values from previous iteration
     ρwork, uwork, vwork = ρ, u, v
     unext = copy(u)
@@ -165,8 +142,8 @@ function filtration!(ρ, u, v, Δx, Δy, Δt, nsteps, nx, ny)
     ρnext = copy(ρ)
     
     for t = 1 : nsteps
-        update!(ρnext, unext, vnext, ρwork, uwork, vwork,
-                Δt, Δx, Δy, nx, ny)
+        update!(; ρnext, unext, vnext, ρwork, uwork, vwork,
+                Δt, Δx, Δy, Pin, Pout, φ, K, μ)
 
         ## Swap next and current and continue iteration
         ρnext, ρwork = ρwork, ρnext
@@ -191,9 +168,11 @@ function plot(u, v, ρ)
     ax.set_xlabel("x")
     ax.set_ylabel("y")
     #legend(loc="upper right",fancybox="true")
+
+    nx, ny= size(u)
     
-    rgx = range(0, 2.0, length=nx)
-    rgy = range(0, 2.0, length=ny)
+    rgx = range(0, 2, length=nx)
+    rgy = range(0, 2, length=ny)
     x = [rgx;]'
     y = [rgy;]'
     X = repeat([rgx;]', length(x))
@@ -214,14 +193,66 @@ function plot(u, v, ρ)
     PyPlot.title("2d filtration of ideal gas through a porous medium")
 
     # PyPlot.svg(true)
-    # savefig("plot.svg")
     
     savefig("img/porous-medium-darcy.png")
     savefig("img/porous-medium-darcy.svg")
 end
+let
+    ## Time steps
+    duration = 2000
+    Δt = 0.001
+    nsteps = round(Int64, duration / Δt)
+    # nsteps = 1000
+    
+    ## Space grid [0, 2] × [0, 2]
+    Δx = 0.05
+    Δy = Δx
+    nx = convert(Int64, 2 / Δx)
+    ny = convert(Int64, 2 / Δy)
+    
+    ## Porosity
+    φ = 0.7
+    
+    ## Specific permeability
+    K = 1e-12
+    
+    ## Dynamic viscocity (value used: air)
+    μ = 18e-6
+    
+    coeff = 8.314 * 298 / 0.029
+    
+    ## Pressures at top and bottom, and initial pressure
+    Pin = 1e6
+    Pout = 1e5
+    P0 = Pout
+    
+    u = zeros(nx, ny)
+    v = zeros(nx, ny)
+    ρ = zeros(nx, ny)
+    
+    ρ .= P0 / coeff
+    
+    
+    problem = (
+               ρ = ρ,
+               u = u,
+               v = v,
+               Δx = Δx,
+               Δy = Δy,
+               Δt = Δt,
+               nsteps = nsteps,
+               K = K,
+               μ = μ,
+               φ = φ,
+               Pin = Pin,
+               Pout = Pout
+              )
+    
+    ## Run our solver
+    ρ, u, v = filtration!(; problem...)
+    
+    # writedlm("density.txt", ρ, ' ')
 
-## Run our solver
-ρ, u, v = filtration!(ρ, u, v, Δx, Δy, Δt, nsteps, nx, ny)
-
-## Plotting
-plot(u, v, ρ)
+    ## Plotting
+    plot(u, v, ρ)
+end
