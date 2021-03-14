@@ -77,24 +77,7 @@ function binarySearch(; f, left, right, niter=50, eps=1e-6)
     return mid
 end
 
-# function findPressure(; m₁::Float64, m₂::Float64, V::Float64,
-#         left=500, right=1000, niter=50, eps=1e-6)
-#     ## We want to find "any" zero of this function
-#     function f(ρ₂::Float64)
-#         ρ₁ = m₁ * ρ₂ / (V * ρ₂ - m₂)
-#         P = 8.314 * 298 / 0.029 * ρ₁
-#         ρ₀ = 616.18
-#         P₀ = 1e5
-#         return (ρ₂ - ρ₀) / ρ₂ - 0.2105 * log10((35e6 + P) / (35e6 + P₀))
-#     end
-# 
-#     ρ₂ = binarySearch(; f, left, right, eps)
-#     ρ₁ = m₁ * ρ₂ / (V * x₀ - m₂)
-#     P = 8.314 * 298 / 0.029 * ρ₁
-#     return P
-# end
-
-function findPressure(ρ̂₁::Float64, ρ̂₂::Float64, V::Float64,
+function findPressure(; ρ̂₁::Float64, ρ̂₂::Float64, V::Float64,
         left=1e4, right=1e7, niter=50, eps=1e-6)
     function f(P::Float64)
         ρ₁ = 0.029 / 8.314 / 298 * P
@@ -102,7 +85,8 @@ function findPressure(ρ̂₁::Float64, ρ̂₂::Float64, V::Float64,
         ρ₂ = ρ̂₂ / (1 - s)
         ρ₀ = 616.18
         P₀ = 1e5
-        return (ρ₂ - ρ₀) / ρ₂ - 0.2105 * log10((35e6 + P) / (35e6 + P₀))
+        return (ρ₂ - ρ₀) / ρ₂ - 0.2105 *
+            log10((35e6 + P) / (35e6 + P₀))
     end
 
     P = binarySearch(; f, left, right, eps)
@@ -111,29 +95,23 @@ function findPressure(ρ̂₁::Float64, ρ̂₂::Float64, V::Float64,
     return P, s
 end
 
-function findDensityofLiquid(P::Float64, s::Float64,
-        left=0, right=1000, niter=50, eps=1.e-6)
-    function f(ρ₂)
-        ρ₀ = 616.18
-        P₀ = 1e5
-        return (ρ₂ - ρ₀) / ρ₂ - 0.2105
-            * log10((35e6 + P) / (35e6 + P₀))
-    end
-
-    ρ₂ = binarySearch(; f, left, right, eps)
+function densityofLiquid(P::Float64, s::Float64)
+    ρ₀ = 616.18
+    P₀ = 1e5
+    ρ₂ = ρ₀ / (1 - 0.2105 * log10((35e6 + P) / (35e6 + P₀)))
     ρ̂₂ = (1 - s) * ρ₂
     return ρ̂₂
 end
 
-function cnsweRename(arr::Array{Float64, 2}, i::Int, j::Int)
-    ## Avoid typos when working with partial derivatives
-    ##
-    ## NW--N--NE
-    ##     |
-    ## W---C---E
-    ##     |
-    ## SW--S--SE
-    
+## Avoid typos when working with partial derivatives
+##
+## NW--N--NE
+##     |
+## W---C---E
+##     |
+## SW--S--SE
+function cnsweRename(arr::AbstractArray{Float64, 2},
+        i::Int, j::Int)
     c = arr[i, j]
     n = arr[i, j + 1]
     s = arr[i, j - 1]
@@ -142,12 +120,14 @@ function cnsweRename(arr::Array{Float64, 2}, i::Int, j::Int)
     return c, n, s, w, e
 end
 
-#### Question: here ρ represent ρ = m / V? or (vs ρ = m / (sV))?
-## Continuity equation to calculate ρ
-## φ ⋅∂ρ / ∂t + div(ρv⃗) = 0
-function continuityEquation!(Δt, Δx, Δy, φ, ρnext::Array{Float64, 2},
-        ρwork::Array{Float64, 2}, uwork::Array{Float64, 2},
-        vwork::Array{Float64, 2})
+## Continuity equation to calculate ρᵢ
+## φ ⋅∂ρᵢ / ∂t + div(ρᵢv⃗ᵢ) = 0, where ρᵢ = mᵢ / V
+function continuityEquation!(; Δt::Float64, Δx::Float64,
+        Δy::Float64, φ::Float64,
+        ρnext::AbstractArray{Float64, 2},
+        ρwork::AbstractArray{Float64, 2},
+        uwork::AbstractArray{Float64, 2},
+        vwork::AbstractArray{Float64, 2})
     nx, ny = size(ρnext)
     for j = 2 : ny - 1
         for i = 2 : nx - 1
@@ -155,56 +135,63 @@ function continuityEquation!(Δt, Δx, Δy, φ, ρnext::Array{Float64, 2},
             uc, un, us, uw, ue = cnsweRename(uwork, i, j)
             vc, vn, vs, vw, ve = cnsweRename(vwork, i, j)
     
-            ρnext[i, j] = ρc - Δt / φ * (uc * (ρe - ρw) / (2 * Δx) +
-                                     vc * (ρn - ρs) / (2 * Δy) +
-                                     ρc * (ue - uw) / (2 * Δx) +
-                                     ρc * (vn - vs) / (2 * Δy))
+            ρnext[i, j] = ρc - Δt / φ *
+                (uc * (ρe - ρw) / (2 * Δx) +
+                 vc * (ρn - ρs) / (2 * Δy) +
+                 ρc * (ue - uw) / (2 * Δx) +
+                 ρc * (vn - vs) / (2 * Δy))
         end
     end
 end
 
 ## Darcy's law
 ## v⃗ = -μ⁻¹ K̂ ⋅∇P
-function darcy(f, unext::Array{Float64, 2}, vnext::Array{Float64, 2},
-        Pnext::Array{Float64, 2}, s::Array{Float64, 2},
-        K::Float64, μ::Float64, Δx::Float64, Δy::Float64)
+function darcy!(; f::Function,
+        unext::AbstractArray{Float64, 2},
+        vnext::AbstractArray{Float64, 2},
+        Pnext::Array{Float64, 2},
+        s::Array{Float64, 2}, K::Float64,
+        μ::Float64, Δx::Float64, Δy::Float64)
     nx, ny = size(unext)
     for j = 2 : ny - 1
         for i = 2 : nx - 1
             ## можно через (ρwork + ρnext) / 2
             Pc, Pn, Ps, Pw, Pe = cnsweRename(Pnext, i, j)
 
-            unext[i, j] = -K / μ * f(s[i, j])
-                * (Pe - Pw) / (2 * Δx)
-            vnext[i, j] = -K / μ * f(s[i, j])
-                * (Pn - Ps) / (2 * Δy)
+            unext[i, j] = -K / μ * f(s[i, j]) *
+                (Pe - Pw) / (2 * Δx)
+            vnext[i, j] = -K / μ * f(s[i, j]) *
+                (Pn - Ps) / (2 * Δy)
         end
     end
 end
 
-function boundaryDensity!(ρnext::Array{Float64, 2})
+function boundaryDensity!(ρnext::AbstractArray{Float64, 2})
     nx, ny = size(ρnext)
     ## ρ = 0 'behind walls'
     @. @views ρnext[1, :] = 0
     @. @views ρnext[nx, :] = 0
     @. @views ρnext[nx ÷ 2 + 1: nx, 1] = 0
+    ## Or ρ = 0 at walls ??
+    # @. @views ρnext[1, :] = -ρnext[2, :]
+    # @. @views ρnext[nx, :] = -ρnext[nx - 1, :]
+    # @. @views ρnext[nx ÷ 2 + 1: nx, 1] = 
+    #     -ρnext[nx ÷ 2 + 1: nx, 2]
 
     ## ∂ρ / ∂y = 0 at entrance and exit
     @. @views ρnext[:, ny] = ρnext[:, ny - 1]
     @. @views ρnext[1: nx ÷ 2, 1] = ρnext[1: nx ÷ 2, 2]
 end
 
-function boundaryPressure(Pnext::Array{Float64, 2},
+function boundaryPressure!(Pnext::Array{Float64, 2},
         Pin::Float64, Pout::Float64)
     nx, ny = size(Pnext)
-
     ## P = Pin at y = 0 and x ∈ [0, 1]
     @. @views Pnext[1: nx ÷ 2, 1] =
         2 * Pin - Pnext[1: nx ÷ 2, 2]
 
     ## P = Pout at y = 2
-    @. @views Pnext[:, ny] =
-        2 * Pout - Pnext[:, ny - 1]
+    @. @views Pnext[:, ny] = 2 * Pout - Pnext[:, ny - 1]
 
     ## ∂P / ∂x = 0 at x = 0, 2
     @. @views Pnext[nx, :] = Pnext[nx - 1, :]
@@ -215,15 +202,16 @@ function boundaryPressure(Pnext::Array{Float64, 2},
         Pnext[nx ÷ 2 + 1: nx, 2]
 end
 
-function boundaryVelocity(unext::Array{Float64, 2},
-        vnext::Array{Float64, 2})
+function boundaryVelocity!(unext::AbstractArray{Float64, 2},
+        vnext::AbstractArray{Float64, 2})
     nx, ny = size(unext)
     ## u = 0 at x = 0, 2 (walls)
     @. @views unext[1, :] = -unext[2, :]
     @. @views unext[nx, :] = -unext[nx - 1, :]
 
     ## v = 0 at y = 0 and x ∈ [1, 2]
-    @. @views vnext[1, nx ÷ 2 + 1: nx] = -vnext[2, nx ÷ 2 + 1: nx]
+    @. @views vnext[1, nx ÷ 2 + 1: nx] =
+        -vnext[2, nx ÷ 2 + 1: nx]
 
     ## dv / dy = 0 at y = 2
     @views vnext[:, ny] = vnext[:, ny - 1]
@@ -232,55 +220,74 @@ function boundaryVelocity(unext::Array{Float64, 2},
     @views vnext[1: nx ÷ 2, 1] =  vnext[1: nx ÷ 2, 2]
 end
 
-function update!(ρnext, unext, vnext, Pnext, snext,
-        ρwork, uwork, vwork, Pwork, swork,
+function update!(; ρnext, unext, vnext, Pnext, snext,
+        ρwork, uwork, vwork,
         Δt, Δx, Δy, Pin, Pout, φ, K, μ)
     nx, ny = size(ρnext)
     coeff = 8.314 * 298 / 0.029
 
     #### Question: How to vectorize and get rid of for loop??
     for k = 1 : 2
-        continuityEquation!(Δt, Δx, Δy, φ,
-                            ρnext[k, :, :], ρwork[k, :, :],
-                            uwork[k, :, :], vwork[k, :, :])
+        @views continuityEquation!(Δt=Δt, Δx=Δx, Δy=Δy, φ=φ,
+            ρnext=ρnext[k, :, :], ρwork=ρwork[k, :, :],
+            uwork=uwork[k, :, :], vwork=vwork[k, :, :])
     end
     for k = 1 : 2
-        boundaryDensity!(ρnext[k, :, :])
+        @views boundaryDensity!(ρnext[k, :, :])
     end
     ## Question: how to vectorize this?
     ## @. Pnext, snext = findPressure(ρnext[1, :, :], ρnext[2, :, :], Δx * Δy)
     for j = 1 : ny
         for i = 1 : nx
             Pnext[i, j], snext[i, j] =
-                findPressure(ρnext[1, i, j],
-                             ρnext[2, i, j], Δx * Δy)
+                findPressure(ρ̂₁=ρnext[1, i, j],
+                             ρ̂₂=ρnext[2, i, j], V=Δx * Δy)
         end
     end
-    boundaryPressure(Pnext, Pin, Pout)
+    boundaryPressure!(Pnext, Pin, Pout)
     
     f1(s) = s^2
     f2(s) = (1 - s)^2
     f = [f1, f2]
     for k = 1 : 2
-        darcy(f[k], unext[k, :, :], vnext[k, :, :], Pnext,
-              snext, K, μ, Δx, Δy)
+        ## this function is not changing arg
+        @views darcy!(f=f[k],  unext=unext[k, :, :],
+               vnext=vnext[k, :, :], Pnext=Pnext,
+               s=(k == 1 ? snext : snext.-1), K=K,
+               μ=μ, Δx=Δx, Δy=Δy)
     end
     for k = 1 : 2
-        boundaryVelocity(unext[k, :, :], vnext[k, :, :])
+        @views boundaryVelocity!(unext[k, :, :],
+                                 vnext[k, :, :])
     end
 end
 
 function filtration!(; Δx, Δy, Δt, nsteps, K, φ, μ,
         Pin, Pout, sys)
-    ## Helper arrays to store values from previous iteration
+    ## Helper struct to store values from previous iteration
     syswork = sys
     sysnext = copy(sys)
     
     for t = 1 : nsteps
-        update!(sysnext.ρ, sysnext.u, sysnext.v, sysnext.P,
-                sysnext.s, syswork.ρ, syswork.u, syswork.v,
-                syswork.P, syswork.s,
-                Δt, Δx, Δy, Pin, Pout, φ, K, μ)
+        Parameters = (
+                      ρnext = sysnext.ρ,
+                      unext = sysnext.u,
+                      vnext = sysnext.v,
+                      Pnext = sysnext.P,
+                      snext = sysnext.s,
+                      ρwork = syswork.ρ,
+                      uwork = syswork.u,
+                      vwork = syswork.v,
+                      Δt = Δt,
+                      Δx = Δx,
+                      Δy = Δy,
+                      Pin = Pin,
+                      Pout = Pout,
+                      φ = φ,
+                      K = K,
+                      μ = μ
+                     )
+        update!(; Parameters...)
 
         ## Swap next and work and continue iteration
         sysnext, syswork = syswork, sysnext
@@ -330,7 +337,7 @@ let
     duration = 2000
     Δt = 0.001
     nsteps = round(Int64, duration / Δt)
-    nsteps = 1
+    nsteps = 100
     
     ## Space grid [0, 2] × [0, 2]
     Δx = 0.05
@@ -350,7 +357,7 @@ let
     ## Pressures at top and bottom, and initial pressure
     Pin = 1e6
     Pout = 1e5
-    P0 = (Pin - Pout) / 2
+    P0 = Pout
 
     ## Initial saturation
     s0 = 0.75
@@ -358,12 +365,12 @@ let
     coeff = 8.314 * 298 / 0.029
 
     u = zeros(2, nx, ny)
-    v = copy(u)
+    v = zeros(2, nx, ny)
     P = fill(P0, nx, ny)
+    boundaryPressure!(P, Pin, Pout)
     s = fill(s0, nx, ny)
     ρ = fill(P0 / coeff, 2, nx, ny)
-    @. ρ[2, :, :] = findDensityofLiquid(P, s)
-    boundaryPressure(P, Pin, Pout)
+    @. ρ[2, :, :] = densityofLiquid(P, s)
 
     sys = System(u, v, ρ, P, s)
 
@@ -381,11 +388,11 @@ let
                  )
 
     filtration!(; Parameters...)
+    plot(sys.u, sys.v, sys.P)
     writedlm("pressure.txt", sys.P, ' ')
     writedlm("u1.txt", sys.u[1, :, :], ' ')
     writedlm("u2.txt", sys.u[2, :, :], ' ')
     writedlm("density1.txt", sys.ρ[1, :, :], ' ')
     writedlm("density2.txt", sys.ρ[2, :, :], ' ')
     writedlm("s.txt", sys.s, ' ')
-    plot(sys.u, sys.v, sys.s)
 end
