@@ -106,6 +106,7 @@ function update!(; ρnext, unext, vnext, ρwork, uwork, vwork,
     for j = 2 : ny - 1
         for i = 2 : nx - 1
             ## Auxiliar variables
+            ## можно через (ρwork + ρnext) / 2
             ρe = ρwork[i + 1, j]
             ρw = ρwork[i - 1, j]
             ρn = ρwork[i, j + 1]
@@ -114,7 +115,6 @@ function update!(; ρnext, unext, vnext, ρwork, uwork, vwork,
             ## Darcy's law
             ## v⃗ = -μ⁻¹ K̂ ⋅∇P
             unext[i, j] = -K / μ * coeff * (ρe - ρw) / (2 * Δx)
-    
             vnext[i, j] = -K / μ * coeff * (ρn - ρs) / (2 * Δy)
         end
     end
@@ -197,8 +197,8 @@ function plot(u, v, ρ)
     savefig("img/porous-medium-darcy.png")
     savefig("img/porous-medium-darcy.svg")
 end
+
 let
-    ## Time steps
     duration = 2000
     Δt = 0.001
     nsteps = round(Int64, duration / Δt)
@@ -216,9 +216,10 @@ let
     ## Specific permeability
     K = 1e-12
     
-    ## Dynamic viscocity (value used: air)
+    ## Dynamic viscocity (for air)
     μ = 18e-6
     
+    ## P = ρRT / μ, (μ - molar mass)
     coeff = 8.314 * 298 / 0.029
     
     ## Pressures at top and bottom, and initial pressure
@@ -231,7 +232,6 @@ let
     ρ = zeros(nx, ny)
     
     ρ .= P0 / coeff
-    
     
     problem = (
                ρ = ρ,
