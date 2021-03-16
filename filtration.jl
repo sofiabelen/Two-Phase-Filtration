@@ -80,10 +80,11 @@ function update!(; ρnext, unext, vnext, ρwork, uwork, vwork,
     
             ## Continuity equation to calculate ρ
             ## φ ⋅∂ρ / ∂t + div(ρv⃗) = 0
-            ρnext[i, j] = ρc - Δt / φ * (uc * (ρe - ρw) / (2 * Δx) +
-                                     vc * (ρn - ρs) / (2 * Δy) +
-                                     ρc * (ue - uw) / (2 * Δx) +
-                                     ρc * (vn - vs) / (2 * Δy))
+            ρnext[i, j] = ρc - Δt / φ *
+                (uc * (ρe - ρw) / (2 * Δx) +
+                 vc * (ρn - ρs) / (2 * Δy) +
+                 ρc * (ue - uw) / (2 * Δx) +
+                 ρc * (vn - vs) / (2 * Δy))
         end
     end
 

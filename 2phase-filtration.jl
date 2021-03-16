@@ -49,15 +49,20 @@
 
 using DelimitedFiles, PyPlot
 
-mutable struct System{T<:Float64}
+## Change index -> [i, j, k]
+mutable struct System{T<:AbstractFloat}
+    ## index [k, i, j], where k=1,2 is the component: 1 - gas,
+    ## 2 - liquid; i, j are x and y spatial coordinates.
     u::Array{T, 3}
     v::Array{T, 3}
     ρ::Array{T, 3}
+    ## [i, j] -> x, y
     P::Array{T, 2}
     s::Array{T, 2}
 end
 
-Base.copy(sys::System) = System(sys.u, sys.v, sys.ρ, sys.P, sys.s)
+Base.copy(sys::System) = System(copy.((sys.u, sys.v, sys.ρ,
+                                       sys.P, sys.s))... )
 
 function binarySearch(; f, left, right, niter=50, eps=1e-6)
     mid = left
@@ -77,8 +82,9 @@ function binarySearch(; f, left, right, niter=50, eps=1e-6)
     return mid
 end
 
-function findPressure(; ρ̂₁::Float64, ρ̂₂::Float64, V::Float64,
-        left=1e4, right=1e7, niter=50, eps=1e-6)
+function findPressure(; ρ̂₁::T, ρ̂₂::T, V::T,
+        left=1e4, right=1e7, niter=50,
+        eps=1e-6) where T<:AbstractFloat
     function f(P::Float64)
         ρ₁ = 0.029 / 8.314 / 298 * P
         s = ρ̂₁ / ρ₁
@@ -110,8 +116,8 @@ end
 ## W---C---E
 ##     |
 ## SW--S--SE
-function cnsweRename(arr::AbstractArray{Float64, 2},
-        i::Int, j::Int)
+function cnswe(arr::AbstractArray{T, 2},
+        i::Int, j::Int) where T<:AbstractFloat
     c = arr[i, j]
     n = arr[i, j + 1]
     s = arr[i, j - 1]
@@ -122,18 +128,18 @@ end
 
 ## Continuity equation to calculate ρᵢ
 ## φ ⋅∂ρᵢ / ∂t + div(ρᵢv⃗ᵢ) = 0, where ρᵢ = mᵢ / V
-function continuityEquation!(; Δt::Float64, Δx::Float64,
-        Δy::Float64, φ::Float64,
-        ρnext::AbstractArray{Float64, 2},
-        ρwork::AbstractArray{Float64, 2},
-        uwork::AbstractArray{Float64, 2},
-        vwork::AbstractArray{Float64, 2})
+## We will add a right side to this where we inject matter.
+function continuity_equation!(; Δt::T, Δx::T, Δy::T, φ::T,
+        ρnext::AbstractArray{T, 2},
+        ρwork::AbstractArray{T, 2},
+        uwork::AbstractArray{T, 2},
+        vwork::AbstractArray{T, 2}) where T<:AbstractFloat
     nx, ny = size(ρnext)
     for j = 2 : ny - 1
         for i = 2 : nx - 1
-            ρc, ρn, ρs, ρw, ρe = cnsweRename(ρwork, i, j)
-            uc, un, us, uw, ue = cnsweRename(uwork, i, j)
-            vc, vn, vs, vw, ve = cnsweRename(vwork, i, j)
+            ρc, ρn, ρs, ρw, ρe = cnswe(ρwork, i, j)
+            uc, un, us, uw, ue = cnswe(uwork, i, j)
+            vc, vn, vs, vw, ve = cnswe(vwork, i, j)
     
             ρnext[i, j] = ρc - Δt / φ *
                 (uc * (ρe - ρw) / (2 * Δx) +
@@ -144,19 +150,20 @@ function continuityEquation!(; Δt::Float64, Δx::Float64,
     end
 end
 
+## Fix: change μ for different components
 ## Darcy's law
-## v⃗ = -μ⁻¹ K̂ ⋅∇P
+## v⃗ = -μ⁻¹ K̂⋅f(s) ⋅∇P
 function darcy!(; f::Function,
-        unext::AbstractArray{Float64, 2},
-        vnext::AbstractArray{Float64, 2},
-        Pnext::Array{Float64, 2},
-        s::Array{Float64, 2}, K::Float64,
-        μ::Float64, Δx::Float64, Δy::Float64)
+        unext::AbstractArray{T, 2},
+        vnext::AbstractArray{T, 2},
+        Pnext::AbstractArray{T, 2},
+            s::AbstractArray{T, 2},
+        K::T, μ::T, Δx::T, Δy::T) where T<:AbstractFloat
     nx, ny = size(unext)
     for j = 2 : ny - 1
         for i = 2 : nx - 1
             ## можно через (ρwork + ρnext) / 2
-            Pc, Pn, Ps, Pw, Pe = cnsweRename(Pnext, i, j)
+            Pc, Pn, Ps, Pw, Pe = cnswe(Pnext, i, j)
 
             unext[i, j] = -K / μ * f(s[i, j]) *
                 (Pe - Pw) / (2 * Δx)
@@ -166,25 +173,28 @@ function darcy!(; f::Function,
     end
 end
 
-function boundaryDensity!(ρnext::AbstractArray{Float64, 2})
-    nx, ny = size(ρnext)
-    ## ρ = 0 'behind walls'
-    @. @views ρnext[1, :] = 0
-    @. @views ρnext[nx, :] = 0
-    @. @views ρnext[nx ÷ 2 + 1: nx, 1] = 0
-    ## Or ρ = 0 at walls ??
-    # @. @views ρnext[1, :] = -ρnext[2, :]
-    # @. @views ρnext[nx, :] = -ρnext[nx - 1, :]
-    # @. @views ρnext[nx ÷ 2 + 1: nx, 1] = 
-    #     -ρnext[nx ÷ 2 + 1: nx, 2]
+## Question: Is it necessry to write these explicitly
+# function boundaryDensity!(ρnext::AbstractArray{Float64, 2})
+#     nx, ny = size(ρnext)
+#     ## Question
+#     ## ρ = 0 'behind walls'
+#     # @. @views ρnext[1, :] = 0
+#     # @. @views ρnext[nx, :] = 0
+#     # @. @views ρnext[nx ÷ 2 + 1: nx, 1] = 0
+#     ## Or ρ = 0 at walls ??
+#     # @. @views ρnext[1, :] = -ρnext[2, :]
+#     # @. @views ρnext[nx, :] = -ρnext[nx - 1, :]
+#     # @. @views ρnext[nx ÷ 2 + 1: nx, 1] = 
+#     #     -ρnext[nx ÷ 2 + 1: nx, 2]
+#     ## ∂ρ / ∂n = 0
+# 
+#     ## ∂ρ / ∂y = 0 at entrance and exit
+#     @. @views ρnext[:, ny] = ρnext[:, ny - 1]
+#     @. @views ρnext[1: nx ÷ 2, 1] = ρnext[1: nx ÷ 2, 2]
+# end
 
-    ## ∂ρ / ∂y = 0 at entrance and exit
-    @. @views ρnext[:, ny] = ρnext[:, ny - 1]
-    @. @views ρnext[1: nx ÷ 2, 1] = ρnext[1: nx ÷ 2, 2]
-end
-
-function boundaryPressure!(Pnext::Array{Float64, 2},
-        Pin::Float64, Pout::Float64)
+function boundaryPressure!(Pnext::Array{T, 2},
+        Pin::T, Pout::T) where T<:AbstractFloat
     nx, ny = size(Pnext)
     ## P = Pin at y = 0 and x ∈ [0, 1]
     @. @views Pnext[1: nx ÷ 2, 1] =
@@ -202,8 +212,8 @@ function boundaryPressure!(Pnext::Array{Float64, 2},
         Pnext[nx ÷ 2 + 1: nx, 2]
 end
 
-function boundaryVelocity!(unext::AbstractArray{Float64, 2},
-        vnext::AbstractArray{Float64, 2})
+function boundaryVelocity!(unext::AbstractArray{T, 2},
+        vnext::AbstractArray{T, 2}) where T<:AbstractFloat
     nx, ny = size(unext)
     ## u = 0 at x = 0, 2 (walls)
     @. @views unext[1, :] = -unext[2, :]
@@ -213,10 +223,10 @@ function boundaryVelocity!(unext::AbstractArray{Float64, 2},
     @. @views vnext[1, nx ÷ 2 + 1: nx] =
         -vnext[2, nx ÷ 2 + 1: nx]
 
-    ## dv / dy = 0 at y = 2
+    ## ∂v / ∂y = 0 at y = 2
     @views vnext[:, ny] = vnext[:, ny - 1]
 
-    ## dv / dy = 0 at y = 0 and x ∈ [0, 1]
+    ## ∂v / ∂y = 0 at y = 0 and x ∈ [0, 1]
     @views vnext[1: nx ÷ 2, 1] =  vnext[1: nx ÷ 2, 2]
 end
 
@@ -226,23 +236,19 @@ function update!(; ρnext, unext, vnext, Pnext, snext,
     nx, ny = size(ρnext)
     coeff = 8.314 * 298 / 0.029
 
-    #### Question: How to vectorize and get rid of for loop??
     for k = 1 : 2
-        @views continuityEquation!(Δt=Δt, Δx=Δx, Δy=Δy, φ=φ,
+        @views continuity_equation!(Δt=Δt, Δx=Δx, Δy=Δy, φ=φ,
             ρnext=ρnext[k, :, :], ρwork=ρwork[k, :, :],
             uwork=uwork[k, :, :], vwork=vwork[k, :, :])
     end
-    for k = 1 : 2
-        @views boundaryDensity!(ρnext[k, :, :])
-    end
-    ## Question: how to vectorize this?
-    ## @. Pnext, snext = findPressure(ρnext[1, :, :], ρnext[2, :, :], Δx * Δy)
-    for j = 1 : ny
-        for i = 1 : nx
-            Pnext[i, j], snext[i, j] =
-                findPressure(ρ̂₁=ρnext[1, i, j],
-                             ρ̂₂=ρnext[2, i, j], V=Δx * Δy)
-        end
+    # for k = 1 : 2
+    #     @views boundaryDensity!(ρnext[k, :, :])
+    # end
+    for index in CartesianIndices(Pnext)
+        i, j = Tuple(index)
+        Pnext[i, j], snext[i, j] =
+            findPressure(ρ̂₁=ρnext[1, i, j],
+                         ρ̂₂=ρnext[2, i, j], V=Δx * Δy)
     end
     boundaryPressure!(Pnext, Pin, Pout)
     
@@ -250,7 +256,6 @@ function update!(; ρnext, unext, vnext, Pnext, snext,
     f2(s) = (1 - s)^2
     f = [f1, f2]
     for k = 1 : 2
-        ## this function is not changing arg
         @views darcy!(f=f[k],  unext=unext[k, :, :],
                vnext=vnext[k, :, :], Pnext=Pnext,
                s=(k == 1 ? snext : snext.-1), K=K,
@@ -264,7 +269,6 @@ end
 
 function filtration!(; Δx, Δy, Δt, nsteps, K, φ, μ,
         Pin, Pout, sys)
-    ## Helper struct to store values from previous iteration
     syswork = sys
     sysnext = copy(sys)
     
@@ -300,8 +304,8 @@ function filtration!(; Δx, Δy, Δt, nsteps, K, φ, μ,
     end
 end
 
-function plot(u::Array{Float64, 3}, v::Array{Float64, 3},
-        P::Array{Float64, 2})
+function plot(u::Array{T, 3}, v::Array{T, 3},
+        P::Array{T, 2}) where T<:AbstractFloat
     nx, ny = size(u[1, :, :])
 
     fig = PyPlot.figure(figsize=(10, 10))
