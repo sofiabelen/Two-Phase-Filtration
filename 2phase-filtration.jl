@@ -1,51 +1,14 @@
 ## Physics:
 ##
-## We simulate 2d flow of ideal gas through a porous medium
-## with the help of Darcy's law.
+## We simulate 2d flow of ideal gas and C₅H₁₂ through a
+## porous medium with the help of Darcy's law.
 ## 
-## v⃗ = -μ⁻¹ K̂ ⋅∇P,
+## v⃗ᵢ = -μᵢ⁻¹ K̂⋅f(sᵢ) ⋅∇P
 ##
 ## where K̂, a second-order tensor in the general case, is
 ## the specific permeability. It depends only on the
 ## geometry of the mediumm. Here we assume isotropy
 ## of space, so K is a scalar. μ is the dynamic viscocity.
-##
-## Continuity equation:
-##
-## φ ⋅∂ρ / ∂t + div(ρv⃗) = 0
-##
-## where φ is the porosity.
-##
-## So, the equations used are the continuity equation and
-## Darcy's equation, which replaces the momentum equation,
-## used in our last program.
-##
-## Another change with respect to the ideal gas program
-## is that we will set the boundary conditions using ghost cells.
-## This way, we can make use of the central difference scheme for
-## boundary conditions which consist of partial derivatives,
-## which is second-order.
-##
-## The boundary conditions consist of walls on the top
-## and bottom, and constant pressure on either side.
-##
-## For now, our velocities will be equal to 0 at the beginning.
-##
-## ---------
-## ->     ->
-## ->     ->
-## ---------
-##
-## Initial conditions:
-## v⃗ = (u, v) = 0⃗ everywhere
-## P = P0 everywhere else
-##
-## Boundary conditions:
-## u = 0 at x = 0, 2 (walls)
-## P = Pin at y = 0 and x ∈ [0, 1]
-## v = 0 at y = 0 and x ∈ [1, 2]
-## P = Pout, dv / dy = 0 at y = 2
-## ∂P / ∂y = 0 at y = 0, 2
 
 using DelimitedFiles, PyPlot
 
