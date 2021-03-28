@@ -1,6 +1,6 @@
-*aux
-*fls
-*fdb_latexmk
-*log
-*synctex.gz
-*texput*
+doc/*aux
+doc/*fls
+doc/*fdb_latexmk
+doc/*log
+doc/*synctex.gz
+doc/*texput*
