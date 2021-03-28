@@ -2,7 +2,7 @@
 
 \author{}
 \date{}
-\title{Filtration of ideal gas and \(C_5 H_{12}\)}
+\title{Filtration of Ideal Gas and Pentane \(\left( C_5 H_{12} \right) \)}
 
 \usepackage[margin=0.9in]{geometry}
 \usepackage{graphicx}
@@ -13,6 +13,11 @@
 \usepackage{subcaption}
 \usepackage{multirow}
 \usepackage{bm}
+\usepackage{ulem}
+\usepackage{xcolor}
+
+\definecolor{grey}{HTML}{737373}
+\definecolor{red}{HTML}{d9343f}
 
 \begin{document}
 \maketitle
@@ -20,16 +25,21 @@
 We simulate 2d flow of ideal gas and \(C_5H_{12}\) through a
 porous medium with the help of Darcy's law:
 \begin{equation}
-    \bm{v}_i = \frac{1}{\mu} \hat K \cdot f(s) \cdot 
-    \nabla P
+    \bm{v}_i = -\frac{1}{\mu_i} \hat K \cdot f_\alpha (s)
+    \cdot \nabla P
 \end{equation}
 where \(\hat K\), the specific permeability.
 It depends only on the geometry of the medium.
 We assume isotropy of space, so K is a scalar.
 \(\mu\) is the dynamic viscosity.
 
-As an approximation, \(f(s) = s^2\) for the first 
-component, and \(f(s) = (1 - s)^2\) for the second.
+\(i\) - component.
+
+\(\alpha\) - phase. (If we had multiple phases, then
+it would be \(f_\alpha\))
+
+As an approximation, \(f_\alpha (s) = s^2\) for the first 
+component, and \(f_\alpha (s) = (1 - s)^2\) for the second.
 
 The continuity equation for each component becomes:
 \begin{equation}
@@ -50,7 +60,7 @@ in the case of \(C_5H_{12}\).
 
 Ideal gas equation of state:
 \begin{equation}
-    P = \frac{RT}{\mu}\rho
+    P = \frac{RT}{M}\rho
 \end{equation}
 
 \section{Boundary Conditions}
@@ -62,7 +72,7 @@ Ideal gas equation of state:
     \label{fig:img-diagram-pdf}
 \end{figure}
 
-On pressure:
+\subsection{Pressure}
 \[
 \begin{cases}
     P = P_{in} &\text{at } y = 0
@@ -75,20 +85,89 @@ On pressure:
 \end{cases}
 \] 
 
-On velocities:
+\subsection{Velocities}
 \[
 \begin{cases}
     u = 0 &\text{at } x = 0, 2 \\
     v = 0 &\text{at } y = 0 \text{ and } x \in [1, 2] \\
-    \frac{\partial v}{\partial y} = 0 &\text{at } y = 2 \\
-    \frac{\partial v}{\partial y} = 0 &\text{at } y = 0
+    {\color{red}\text{Darcy}} &\text{at } y = 2 \\
+    {\color{red}\text{Darcy}} &\text{at } y = 0
     \text{ and } x \in [0, 1]\\
 \end{cases}
 \] 
 
-On density - ? 
+\subsection{Density}
 
-On saturation - ?
+We derive the densities from the equations of state.
+
+\subsection{Saturation}
+    Boundary condition on the inlet as the molar
+    composition:
+    \[
+        \psi = \frac{\nu_1}{\nu_2} = \frac{m_1}{M_1}
+        \cdot \frac{M_2}{m_2},
+    \] 
+    where \(M_1\) and \(M_2\) represent the molar mass 
+    of each component.
+
+    We can derive the densities from the equations of state,
+    then we can find the saturation.
+
+    \[
+    \rho_1 = \frac{m_1}{sV}, \qquad
+    \rho_2 = \frac{m_2}{(1 - s)V}
+    \] 
+
+    \[
+    \implies \frac{\rho_1}{\rho_2} = \frac{m_1}{m_2}
+    \frac{1 - s}{s}
+    = \psi \frac{M_2}{M_1}\frac{1 - s}{s}
+    \] 
+
+    \[
+        \implies s = \left( 
+        \frac{\rho_1 M_1}{\rho_2 M_2 \psi} + 1 \right)^{-1}
+    \] 
+
+    {\color{red}What about everywhere else???}
+
+\section{Discretization Scheme}
+
+We use the finite difference method (FDM).
+
+\subsection{Continuity Equation}
+
+Second order in space. First order in time.
+
+\[
+\frac{\partial \rho}{\partial t}
++ \frac{\partial \rho}{\partial x} u
++ \frac{\partial \rho}{\partial y} v
++ \frac{\partial u}{\partial x} \rho
++ \frac{\partial v}{\partial y} \rho = 0
+\] 
+
+\[
+\varphi \frac{\rho^{n + 1}_{i, j} - \rho^n_{i, j}}{\Delta t}
++ \frac{\rho_{i+1, j}^n - \rho_{i-1,j}^n}{2\Delta x} u_{i,j}
++ \frac{\rho_{i, j+1}^n - \rho_{i,j-1}^n}{2\Delta y} v_{i,j}
++ \frac{u_{i+1, j} - u_{i-1,j}^n}{2\Delta x} \rho_{i,j}^n
++ \frac{v_{i, j+1}^n - v_{i,j-1}^n}{2\Delta y} \rho_{ij}^n = 0
+\] 
+
+\subsection{Darcy's Law}
+
+Second order in space.
+
+\[
+    u_{i,j}^n = -\frac{K}{\mu} f_\alpha (s_{i, j}^n)
+    \frac{P_{i + 1, j}^n - P_{i - 1, j}^n}{2\Delta x} \\
+\] 
+
+\[
+    v_{i,j}^n = -\frac{K}{\mu} f_\alpha(s_{i, j}^n)
+    \frac{P_{i, j + 1}^n - P_{i, j - 1}^n}{2\Delta y}
+\] 
 
 \section{Algorithm}
 
@@ -104,10 +183,77 @@ Second order scheme in space, with the use of ghost cells.
     \item Use Darcy's law to calculate velocities.
 \end{enumerate}
 
-% \section{TODO}
-% \begin{enumerate}
-%     \item Fix: \(\mu\) is different for each component.
-%     \item Add boundary conditions on \(s_{n + 1} = s_n\)
-%         in the borders.
-% \end{enumerate}
+\section{Units and Parameters}
+
+\begin{table}[H]
+    \centering
+    \caption{Parameters for our simulation.}
+    \label{tab:label}
+    \begin{tabular}{| c | c |}
+        \hline
+        Temperature & 298 \(K\) \\
+        \hline
+        \(P_{in}\) & \(10^6 Pa\) \\
+        \hline
+        \(P_{out}\) & \(10^5 Pa\) \\
+        \hline
+        Porosity, \(\varphi\) & 0.7 \\
+        \hline
+        Specific Permeability, \(K\) & \(10^{-12}\) \\
+        \hline
+        Dynamic Viscosity of Ideal Gas, \(\mu_1\) &
+        \(1.8 \cdot 10^{-5}\) \(Pa \cdot s\) \\
+        \hline
+        Dynamic Viscosity of Pentane, \(\mu_2\) &
+        \(2,14 \cdot 10^{-4}\) \( Pa \cdot s\) \\
+        \hline
+        Molar Mass of Ideal Gas, \(M_1\) & 
+        \(0.028\) \(\frac{kg}{mol}\) \\
+        \hline
+        Molar Mass of Pentane, \(M_2\) & 
+        \(0.07215\) \(\frac{kg}{mol}\) \\
+        \hline
+        Molar Composition at Inlet, \(\psi\) &
+        \(0.3\) \\
+        \hline
+    \end{tabular}
+\end{table}
+
+\section{TODO}
+\begin{enumerate}
+    \item \sout{Fix: \(\mu\) is different for each component.}
+    % \item Add boundary conditions on \(s_{n + 1} = s_n\)
+    %     in the borders.
+    \item Calculate the velocities in the first iteration 
+        with a first order scheme. Then, everything is
+        calculated as normal.
+    \item \sout{The boundary condition \(\frac{dv}{dn} = 0\) 
+            is usually used when solving the Navier-Stokes
+        equation. In the case of filtration with Darcy's
+        equation, we can either set the velocities
+        explicitly or derive them from the pressure
+        gradient on the boundaries and from the Darcy's
+    equation on the inside.}
+    \item \sout{Create boundary condition on the inlet 
+            as the molar
+        composition:}
+        \[
+            \psi = \frac{\nu_1}{\nu_2} = \frac{m_1}{M_1}
+            \cdot \frac{M_2}{m_2},
+        \] 
+        \sout{where \(M_1\) and \(M_2\) represent 
+            the molar mass of each component.
+
+        This way, we are essentially giving a boundary
+        condition on the saturation, since we can derive
+    the densities from the equations of state.}
+    \item Change order of indexing: column major storage
+        in memory.
+    \item Upgrade to predictor-corrector
+    \item Use naming conventions consistent with Julia base.
+
+Functions are lowercase (maximum, convert) and, when readable, 
+with multiple words squashed together.
+When necessary, use underscores as word separators.
+\end{enumerate}
 \end{document}
