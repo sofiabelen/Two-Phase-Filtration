@@ -18,6 +18,7 @@
 
 \definecolor{grey}{HTML}{737373}
 \definecolor{red}{HTML}{d9343f}
+\definecolor{green}{HTML}{2e8a07}
 
 \begin{document}
 \maketitle
@@ -63,7 +64,18 @@ Ideal gas equation of state:
     P = \frac{RT}{M}\rho
 \end{equation}
 
-\section{Boundary Conditions}
+\section{Boundary and Initial Conditions}
+
+On the first iteration, we set an initial
+pressure and molar composition.
+Then, we derive the velocities from the 
+pressure gradient using Darcy's law and the
+saturation from the densities
+and molar composition.
+
+{\color{red}All our BC are 2-nd order (thanks to ghost
+    cells), except for the BC on velocity on the inlet
+and outlet, which end up being 1-st order.}
 
 \begin{figure}[H]
     \centering
@@ -73,6 +85,9 @@ Ideal gas equation of state:
 \end{figure}
 
 \subsection{Pressure}
+
+\textbf{BC:}
+
 \[
 \begin{cases}
     P = P_{in} &\text{at } y = 0
@@ -85,13 +100,30 @@ Ideal gas equation of state:
 \end{cases}
 \] 
 
+\textbf{IC:}
+
+\[
+\begin{cases}
+    P = P_{out} &\text{at outlet} \\
+    P = P_{in}  &\text{at inlet} \\
+    P = P_0     &\text{everywhere else}
+\end{cases}
+\] 
+
 \subsection{Velocities}
+
+\textbf{IC:} Darcy 1-st order.
+
+\textbf{BC:}
+
 \[
 \begin{cases}
     u = 0 &\text{at } x = 0, 2 \\
     v = 0 &\text{at } y = 0 \text{ and } x \in [1, 2] \\
-    {\color{red}\text{Darcy}} &\text{at } y = 2 \\
-    {\color{red}\text{Darcy}} &\text{at } y = 0
+    {\color{red}\text{Darcy (1-st Order)}}
+          &\text{at } y = 2 \\
+    {\color{red}\text{Darcy (1-st Order)}}
+          &\text{at } y = 0
     \text{ and } x \in [0, 1]\\
 \end{cases}
 \] 
@@ -119,13 +151,13 @@ We derive the densities from the equations of state.
     \] 
 
     \[
-    \implies \frac{\rho_1}{\rho_2} = \frac{m_1}{m_2}
+    \frac{\rho_1}{\rho_2} = \frac{m_1}{m_2}
     \frac{1 - s}{s}
     = \psi \frac{M_2}{M_1}\frac{1 - s}{s}
     \] 
 
     \[
-        \implies s = \left( 
+        s = \left( 
         \frac{\rho_1 M_1}{\rho_2 M_2 \psi} + 1 \right)^{-1}
     \] 
 
@@ -220,13 +252,17 @@ Second order scheme in space, with the use of ghost cells.
 \end{table}
 
 \section{TODO}
+
 \begin{enumerate}
     \item \sout{Fix: \(\mu\) is different for each component.}
+
     % \item Add boundary conditions on \(s_{n + 1} = s_n\)
     %     in the borders.
-    \item Calculate the velocities in the first iteration 
-        with a first order scheme. Then, everything is
-        calculated as normal.
+
+    \item \sout{Calculate the velocities in the first 
+        iteration with a first order scheme. 
+    Then, everything is calculated as normal.}
+
     \item \sout{The boundary condition \(\frac{dv}{dn} = 0\) 
             is usually used when solving the Navier-Stokes
         equation. In the case of filtration with Darcy's
@@ -234,6 +270,7 @@ Second order scheme in space, with the use of ghost cells.
         explicitly or derive them from the pressure
         gradient on the boundaries and from the Darcy's
     equation on the inside.}
+
     \item \sout{Create boundary condition on the inlet 
             as the molar
         composition:}
@@ -247,13 +284,16 @@ Second order scheme in space, with the use of ghost cells.
         This way, we are essentially giving a boundary
         condition on the saturation, since we can derive
     the densities from the equations of state.}
+
     \item Change order of indexing: column major storage
         in memory.
-    \item Upgrade to predictor-corrector
+
     \item Use naming conventions consistent with Julia base.
 
 Functions are lowercase (maximum, convert) and, when readable, 
 with multiple words squashed together.
 When necessary, use underscores as word separators.
+
+    \item Upgrade to predictor-corrector
 \end{enumerate}
 \end{document}

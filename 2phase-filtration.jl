@@ -27,6 +27,19 @@ end
 Base.copy(sys::System) = System(copy.((sys.u, sys.v, sys.ρ,
                                        sys.P, sys.s))... )
 
+function tait(P::AbstractFloat)
+    B = 35e6
+    P₀ = 1e5
+    C = 0.2105
+    ρ₀ = 616.18
+    return ρ₀ / (1 - C * log10((B + P) / (B + P₀)))
+end
+
+function idealgas(P::AbstractFloat)
+    coeff = 8.314 * 298 / 0.029
+    return P / coeff
+end
+
 function binarySearch(; f, left, right, niter=50, eps=1e-6)
     mid = left
     for i = 1 : niter
@@ -64,13 +77,13 @@ function findPressure(; ρ̂₁::T, ρ̂₂::T, V::T,
     return P, s
 end
 
-function densityofLiquid(P::Float64, s::Float64)
-    ρ₀ = 616.18
-    P₀ = 1e5
-    ρ₂ = ρ₀ / (1 - 0.2105 * log10((35e6 + P) / (35e6 + P₀)))
-    ρ̂₂ = (1 - s) * ρ₂
-    return ρ̂₂
-end
+# function densityofLiquid(P::Float64, s::Float64)
+#     ρ₀ = 616.18
+#     P₀ = 1e5
+#     ρ₂ = ρ₀ / (1 - 0.2105 * log10((35e6 + P) / (35e6 + P₀)))
+#     ρ̂₂ = (1 - s) * ρ₂
+#     return ρ̂₂
+# end
 
 ## Avoid typos when working with partial derivatives
 ##
@@ -136,23 +149,27 @@ function darcy!(; f::Function,
     end
 end
 
+# function initialVelocity!(; f::Function,
+#         u::AbstractArray{T, 2},
+#         v::AbstractArray{T, 2},
+#         P::AbstractArray{T, 2},
+#             s::AbstractArray{T, 2},
+#         K::T, μ::T, Δx::T, Δy::T) where T<:AbstractFloat
+#     nx, ny = size(u)
+#     @. @views u[1, :] = -K / μ * f(s[1, :]) *
+#         (P[2, :] - P[1, :]) / Δx
+#     @. @views u[nx, :] = -K / μ * f(s[1, :]) *
+#         (P[nx, :] - P[nx - 1, :]) / Δx
+#     @. @views v[:, 1] = -K / μ * f(s[1, :]) *
+#         (P[:, 2] - P[:, 1]) / Δx
+#     @. @views v[:, ny] = -K / μ * f(s[1, :]) *
+#         (P[:, ny] - P[:, ny - 1]) / Δx
+# end
+
 function boundaryDensity!(
         ρ::AbstractArray{T, 3},
         P::AbstractArray{T, 2}) where T<:AbstractFloat
     nx, ny = size(ρ)
-
-    function tait(P)
-        B = 35e6
-        P₀ = 1e5
-        C = 0.2105
-        ρ₀ = 616.18
-        return ρ₀ / (1 - C * log10((B + P) / (B + P₀)))
-    end
-
-    function idealgas(P)
-        coeff = 8.314 * 298 / 0.029
-        return P / coeff
-    end
 
     ## We find the densities from the equation of state, then
     @. @views ρ[1, :, 1]  = idealgas(P[:, 1])
@@ -168,14 +185,20 @@ end
 
 function boundarySaturation!(ψ::T, M₁::T, M₂::T,
         ρ::AbstractArray{T, 3},
-        s::AbstractArray{T, 2},
-        P::AbstractArray{T, 2}) where T<:AbstractFloat
+        s::AbstractArray{T, 2}) where T<:AbstractFloat
     nx, ny = size(ρ)
     ## Inlet
     ## We derive the saturation from the molar composition and
     ## the densities.
-    @. @views s[1, 1: nx ÷ 2, 1] = (ρ[1, 1: nx ÷ 2, 1] /
+    @. @views s[1: nx ÷ 2, 1] = (ρ[1, 1: nx ÷ 2, 1] /
             ρ[2, 1: nx ÷ 2, 1] * M₁ / M₂ / ψ + 1)^(-1)
+end
+
+function initialSaturation!(ψ₀::T, M₁::T, M₂::T,
+        ρ::AbstractArray{T, 3},
+        s::AbstractArray{T, 2}) where T<:AbstractFloat
+    @. @views s[:, :] = (ρ[1, :, :] /
+            ρ[2, :, :] * M₁ / M₂ / ψ₀ + 1)^(-1)
 end
 
 function boundaryPressure!(P::Array{T, 2},
@@ -222,7 +245,6 @@ function update!(; ρnext, unext, vnext, Pnext, snext,
         ρwork, uwork, vwork,
         Δt, Δx, Δy, Pin, Pout, φ, K, μ, M, ψ)
     nx, ny = size(ρnext)
-    coeff = 8.314 * 298 / 0.029
 
     for k = 1 : 2
         @views continuity_equation!(Δt=Δt, Δx=Δx, Δy=Δy, φ=φ,
@@ -248,18 +270,47 @@ function update!(; ρnext, unext, vnext, Pnext, snext,
     for k = 1 : 2
         @views darcy!(f=f[k], unext=unext[k, :, :],
                vnext=vnext[k, :, :], Pnext=Pnext,
-               s=(k == 1 ? snext : snext.-1), K=K,
-               μ=μ[k], Δx=Δx, Δy=Δy)
+               s=(k == 1 ? snext : 1 - snext),
+               K = K, μ=μ[k], Δx=Δx, Δy=Δy)
 
         @views boundaryVelocity!(f=f[k], K=K, μ=μ[k],
-            s=(k == 1 ? snext : snext.-1),
+            s=(k == 1 ? snext : 1 - snext),
             u=unext[k, :, :], v=vnext[k, :, :], P=Pnext)
     end
 end
 
 function filtration!(; Δx, Δy, Δt, nsteps, K, φ, μ,
-        Pin, Pout, sys, M, ψ)
-    syswork = sys
+        Pin, Pout, P₀, M, ψ, ψ₀)
+
+    nx = round(Int64, 2 / Δx)
+    ny = round(Int64, 2 / Δy)
+
+    P = fill(P₀, nx, ny)
+    boundaryPressure!(P, Pin, Pout)
+
+    s = zeros(nx, ny)
+    ρ = zeros(2, nx, ny)
+
+    @. @views ρ[1, :, :] = idealgas(P₀)
+    @. @views ρ[2, :, :] = tait(P₀)
+
+    initialSaturation!(ψ₀, M[1], M[2], ρ, s)
+
+    u = zeros(2, nx, ny)
+    v = zeros(2, nx, ny)
+    
+    f1(s) = s^2
+    f2(s) = (1 - s)^2
+    f = [f1, f2]
+
+    for k = 1 : 2
+        @views boundaryVelocity!(f=f[k], K=K, μ=μ[k], P=P,
+                               u=u[k, :, :], 
+                               v=v[k, :, :],
+                               s=(k == 1 ? s : 1 - s))
+    end
+
+    syswork = System(u, v, ρ, P, s)
     sysnext = copy(sys)
     
     for t = 1 : nsteps
@@ -288,12 +339,13 @@ function filtration!(; Δx, Δy, Δt, nsteps, K, φ, μ,
         ## Swap next and work and continue iteration
         sysnext, syswork = syswork, sysnext
     end
-
-    ## If in the end syswork is not the original sys,
-    ## copy the most recent data into sys
-    if syswork !== sys
-        sys = syswork
-    end
+# 
+#     ## If in the end syswork is not the original sys,
+#     ## copy the most recent data into sys
+#     if syswork !== sys
+#         sys = syswork
+#     end
+    return syswork
 end
 
 function plot(u::Array{T, 3}, v::Array{T, 3},
@@ -338,9 +390,6 @@ let
     ## Space grid [0, 2] × [0, 2]
     Δx = 0.05
     Δy = Δx
-    nx = round(Int64, 2 / Δx)
-    ny = round(Int64, 2 / Δy)
-    
     ## Porosity
     φ = 0.7
     
@@ -353,10 +402,7 @@ let
     ## Pressures at top and bottom, and initial pressure
     Pin = 1e6
     Pout = 1e5
-    P0 = Pout
-
-    ## Initial Saturation
-    s0 = 0.75
+    P₀ = Pout
 
     ## Molar masses
     M = [0.028, 0.07215]
@@ -365,17 +411,8 @@ let
     ## ψ = ν₁ / ν₂ = (m₁ / M₁) / (m₂ / M₂)
     ψ = 0.3
 
-    coeff = 8.314 * 298 / 0.029
-
-    u = zeros(2, nx, ny)
-    v = zeros(2, nx, ny)
-    P = fill(P0, nx, ny)
-    boundaryPressure!(P, Pin, Pout)
-    s = fill(s0, nx, ny)
-    ρ = fill(P0 / coeff, 2, nx, ny)
-    @. ρ[2, :, :] = densityofLiquid(P, s)
-
-    sys = System(u, v, ρ, P, s)
+    ## Initial Molar Composition
+    ψ₀ = ψ
 
     Parameters = (
                   Δt = Δt,
@@ -387,12 +424,13 @@ let
                   μ = μ,
                   Pin = Pin,
                   Pout = Pout,
-                  sys = sys,
+                  P₀ = P₀,
                   M = M,
-                  ψ = ψ
+                  ψ = ψ,
+                  ψ₀ = ψ₀
                  )
 
-    filtration!(; Parameters...)
+    sys = filtration!(; Parameters...)
     plot(sys.u, sys.v, sys.P)
     writedlm("pressure.txt", sys.P, ' ')
     writedlm("u1.txt", sys.u[1, :, :], ' ')
