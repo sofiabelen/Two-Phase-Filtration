@@ -205,8 +205,8 @@ function boundaryPressure!(P::Array{T, 2},
         Pin::T, Pout::T) where T<:AbstractFloat
     nx, ny = size(P)
     ## P = Pin at y = 0 and x ∈ [0, 1]
-    @. @views P[1: nx ÷ 2, 1] =
-        2 * Pin - P[1: nx ÷ 2, 2]
+    @. @views P[:, 1] =
+        2 * Pin - P[:, 2]
 
     ## P = Pout at y = 2
     @. @views P[:, ny] = 2 * Pout - P[:, ny - 1]
@@ -216,11 +216,11 @@ function boundaryPressure!(P::Array{T, 2},
     @. @views P[1, :] = P[2, :]
 
     ## ∂P / ∂y = 0 at y = 0 x ∈ [1, 2]
-    @. @views P[nx ÷ 2 + 1: nx, 1] =
-        P[nx ÷ 2 + 1: nx, 2]
+    # @. @views P[nx ÷ 2 + 1: nx, 1] =
+    #    P[nx ÷ 2 + 1: nx, 2]
 end
 
-function boundaryVelocity!(; K::T, μ::T, f::Function,
+function boundaryVelocity!(; K::T, μ::T, f::Function, Δy::T,
         s::AbstractArray{T, 2},
         u::AbstractArray{T, 2},
         v::AbstractArray{T, 2},
@@ -231,14 +231,14 @@ function boundaryVelocity!(; K::T, μ::T, f::Function,
     @. @views u[nx, :] = -u[nx - 1, :]
 
     ## v = 0 at y = 0 and x ∈ [1, 2]
-    @. @views v[1, nx ÷ 2 + 1: nx] =
-        -v[2, nx ÷ 2 + 1: nx]
+    # @. @views v[1, nx ÷ 2 + 1: nx] =
+    #     -v[2, nx ÷ 2 + 1: nx]
 
     ## Darcy 
-    @views v[:, ny] = -K / μ * f(s[:, ny]) *
+    @. @views v[:, ny] = -K / μ * f(s[:, ny]) *
         (P[:, ny] - P[:, ny - 1]) / Δy
-    @views v[1: nx ÷ 2, 1] =  -K / μ * f(s[1: nx ÷ 2, 1]) *
-        (P[1: nx ÷ 2, 2] - P[1: nx ÷ 2, 1]) / Δy
+    @. @views v[:, 1] =  -K / μ * f(s[:, 1]) *
+        (P[:, 2] - P[:, 1]) / Δy
 end
 
 function update!(; ρnext, unext, vnext, Pnext, snext,
@@ -261,20 +261,20 @@ function update!(; ρnext, unext, vnext, Pnext, snext,
 
     boundaryPressure!(Pnext, Pin, Pout)
     boundaryDensity!(ρnext, Pnext) 
-    boundarySaturation!(ψ, M[1], M[2], ρnext, snext, Pnext) 
+    boundarySaturation!(ψ, M[1], M[2], ρnext, snext) 
     
     f1(s) = s^2
-    f2(s) = (1 - s)^2
+    f2(s) = (1 .- s)^2
     f = [f1, f2]
 
     for k = 1 : 2
         @views darcy!(f=f[k], unext=unext[k, :, :],
                vnext=vnext[k, :, :], Pnext=Pnext,
-               s=(k == 1 ? snext : 1 - snext),
+               s=(k == 1 ? snext : 1 .- snext),
                K = K, μ=μ[k], Δx=Δx, Δy=Δy)
 
-        @views boundaryVelocity!(f=f[k], K=K, μ=μ[k],
-            s=(k == 1 ? snext : 1 - snext),
+        @views boundaryVelocity!(f=f[k], K=K, μ=μ[k], Δy=Δy,
+            s=(k == 1 ? snext : 1 .- snext),
             u=unext[k, :, :], v=vnext[k, :, :], P=Pnext)
     end
 end
@@ -300,18 +300,18 @@ function filtration!(; Δx, Δy, Δt, nsteps, K, φ, μ,
     v = zeros(2, nx, ny)
     
     f1(s) = s^2
-    f2(s) = (1 - s)^2
+    f2(s) = (1 .- s)^2
     f = [f1, f2]
 
     for k = 1 : 2
         @views boundaryVelocity!(f=f[k], K=K, μ=μ[k], P=P,
-                               u=u[k, :, :], 
+                               Δy=Δy, u=u[k, :, :], 
                                v=v[k, :, :],
-                               s=(k == 1 ? s : 1 - s))
+                               s=(k == 1 ? s : 1 .- s))
     end
 
     syswork = System(u, v, ρ, P, s)
-    sysnext = copy(sys)
+    sysnext = copy(syswork)
     
     for t = 1 : nsteps
         Parameters = (
@@ -383,9 +383,9 @@ end
 
 let
     duration = 2000
-    Δt = 0.001
+    Δt = 0.000001
     nsteps = round(Int64, duration / Δt)
-    nsteps = 100
+    nsteps = 10
     
     ## Space grid [0, 2] × [0, 2]
     Δx = 0.05
