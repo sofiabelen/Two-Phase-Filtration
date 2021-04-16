@@ -33,3 +33,15 @@ struct Parameters{T<:AbstractFloat}
     M::Vector{T}
     μ::Vector{T}
 end
+
+struct TaitEoS{T}
+    B::T
+    P₀::T
+    C::T
+    ρ₀::T
+end
+
+struct IdealGasEoS{T}
+    T::T
+    M::T
+end

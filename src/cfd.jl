@@ -1,4 +1,4 @@
-include("objects.jl")
+include("structs.jl")
 include("thermo.jl")
 
 ## Avoid typos when working with partial derivatives

@@ -1,9 +1,8 @@
 include("cfd.jl")
-include("objects.jl")
+include("structs.jl")
 include("thermo.jl")
 include("plot.jl")
-
-using DelimitedFiles
+include("SimulationParameters.jl")
 
 function update!(syswork::System, sysnext::System,
         p::Parameters)
@@ -45,43 +44,13 @@ function filtration!(p::Parameters)
 end
 
 let
-    # duration = 2000
-    Δt = 0.000001
-    # nsteps = round(Int64, duration / Δt)
-    nsteps = 10
-    
-    ## Space grid [0, 2] × [0, 2]
-    ## Change later to 2 (how ?)
-    L = 2
-    nx = ny = 40
-    Δx = Δy = L / nx
+    ## https://stackoverflow.com/questions/37200025/how-to-import-custom-module-in-julia
+    using DelimitedFiles, .SimulationParameters
+    sp = SimulationParameters
 
-    ## Porosity
-    φ = 0.7
-    
-    ## Specific permeability
-    K = 1e-12
-    
-    ## Dynamic viscocity
-    μ = [1.8e-5, 2.14e-4]
-    
-    ## Pressures at top and bottom, and initial pressure
-    Pin = 1e6
-    Pout = 1e5
-    P₀ = Pout
-
-    ## Molar masses
-    M = [0.028, 0.07215]
-
-    ## Molar Composition on the Inlet
-    ## ψ = ν₁ / ν₂ = (m₁ / M₁) / (m₂ / M₂)
-    ψ = 0.3
-
-    ## Initial Molar Composition
-    ψ₀ = ψ
-
-    p = Parameters(nsteps, nx, ny, L, Δx, Δy, Δt, 
-                        φ, K, Pin, Pout, P₀, ψ, ψ₀, M, μ)
+    p = Parameters(sp.nsteps, sp.nx, sp.ny, sp.L, sp.Δx,
+                   sp.Δy, sp.Δt, sp.φ, sp.K, sp.Pin,
+                   sp.Pout, sp.P₀, sp.ψ, sp.ψ₀, sp.M, sp.μ)
 
     sys = filtration!(p)
     # plot(sys, p)

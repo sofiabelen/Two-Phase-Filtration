@@ -1,4 +1,4 @@
-include("objects.jl")
+include("structs.jl")
 
 function plot(u::Array{T, 3}, v::Array{T, 3},
         P::Array{T, 2}, p) where T<:AbstractFloat
