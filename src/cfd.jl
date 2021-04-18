@@ -2,12 +2,13 @@ include("structs.jl")
 include("thermo.jl")
 
 ## Avoid typos when working with partial derivatives
-##
+
 ## NW--N--NE
 ##     |
 ## W---C---E
 ##     |
 ## SW--S--SE
+
 function cnswe(arr::AbstractMatrix{T},
         i::Int, j::Int) where T<:AbstractFloat
     c = arr[i, j]
@@ -17,6 +18,8 @@ function cnswe(arr::AbstractMatrix{T},
     e = arr[i + 1, j]
     return c, n, s, w, e
 end
+
+# ------------------ Continuity Equation ----------------- #
 
 ## Continuity equation to calculate ρᵢ
 ## φ ⋅∂ρᵢ / ∂t + div(ρᵢv⃗ᵢ) = 0, where ρᵢ = mᵢ / V
@@ -52,16 +55,21 @@ function continuity_equation!(syswork::System,
                                     p=p)
     end
 end
+# -------------------------------------------------------- #
+
+
+# ---------------------- Darcy --------------------------- #
 
 ## Darcy's law
 ## v⃗ = -μ⁻¹ K̂⋅f(s) ⋅∇P
+
 function darcy!(; f::Function,
         u::AbstractMatrix{T}, v::AbstractMatrix{T},
         P::AbstractMatrix{T}, s::AbstractMatrix{T},
         p::Parameters, k::Integer) where T<:AbstractFloat
     for j = 2 : p.ny - 1
         for i = 2 : p.nx - 1
-            ## можно через (ρwork + ρ) / 2
+            ## можно через (ρwork + ρ) / 2 -> 2-го порядка
             Pc, Pn, Ps, Pw, Pe = cnswe(P, i, j)
 
             u[i, j] = -p.K / p.μ[k] * f(s[i, j]) *
@@ -84,51 +92,72 @@ function darcy!(sys::System, p::Parameters)
                       s=sys.s, p=p, k=k)
     end
 end
+# -------------------------------------------------------- #
+
+
+
+# ---------------------- BC & IC ------------------------- #
 
 function boundaryDensity!(ρ::AbstractArray{T, 3},
-        P::AbstractMatrix{T},
+        P::AbstractMatrix{T}, s::AbstractMatrix{T},
         p::Parameters) where T<:AbstractFloat
-    @. @views ρ[1, :, 1]  = density(ideal_gas, P[:, 1])
-    @. @views ρ[1, :, p.ny] = density(ideal_gas, P[:, p.ny])
-    @. @views ρ[1, 1, :]  = density(ideal_gas, P[1, :])
-    @. @views ρ[1, p.nx, :] = density(ideal_gas, P[p.nx, :])
+    @. @views ρ[1, :, 1]  = density(ideal_gas, P[:, 1]) *
+                                               s[:, 1]
+    @. @views ρ[1, :, p.ny] = density(ideal_gas, P[:, p.ny])*
+                                                 s[:, p.ny]
+    @. @views ρ[1, 1, :]  = density(ideal_gas, P[1, :]) *
+                                               s[1, :]
+    @. @views ρ[1, p.nx, :] = density(ideal_gas, P[p.nx, :])*
+                                                 s[p.nx, :]  
 
-    @. @views ρ[2, :, 1]  = density(tait_C₅H₁₂, P[:, 1])
-    @. @views ρ[2, :, p.ny] = density(tait_C₅H₁₂, P[:, p.ny])
-    @. @views ρ[2, 1, :]  = density(tait_C₅H₁₂, P[1, :])
-    @. @views ρ[2, p.nx, :] = density(tait_C₅H₁₂, P[p.nx, :])
+    @. @views ρ[2, :, 1]  = density(tait_C₅H₁₂, P[:, 1]) *
+                                           (1 - s[:, 1])
+    @. @views ρ[2, :, p.ny] = density(tait_C₅H₁₂, P[:,p.ny])*
+                                             (1 - s[:,p.ny])
+    @. @views ρ[2, 1, :]  = density(tait_C₅H₁₂, P[1, :]) *
+                                           (1 - s[1, :])
+    @. @views ρ[2, p.nx, :] = density(tait_C₅H₁₂, P[p.nx,:])*
+                                             (1 - s[p.nx,:])
 end
 
 function boundaryDensity!(sys::System, p::Parameters)
-    boundaryDensity!(sys.ρ, sys.P, p)
+    boundaryDensity!(sys.ρ, sys.P, sys.s, p)
 end
 
+## Inlet
+## We derive the saturation from the molar composition
+## ψ = ν₁ / ν₂ and the densities ρ̂₁ and ρ̂₂.
+
 function boundarySaturation!(
-        ρ::AbstractArray{T, 3},
+        ρ̂₁::AbstractMatrix{T},
+        ρ̂₂::AbstractMatrix{T},
         s::AbstractMatrix{T},
         p::Parameters) where T<:AbstractFloat
-    ## Inlet
-    ## We derive the saturation from the molar composition 
-    ## and the densities.
-    @. @views s[1: p.nx ÷ 2, 1] = (ρ[1, 1: p.nx ÷ 2, 1] /
-            ρ[2, 1: p.nx ÷ 2, 1] *
+
+    @. @views s[1: p.nx ÷ 2, 1] = (ρ̂₁[1: p.nx ÷ 2, 1] /
+            ρ̂₂[1: p.nx ÷ 2, 1] *
             p.M[1] / p.M[2] / p.ψ + 1)^(-1)
 end
 
 function boundarySaturation!(sys::System, p::Parameters)
-    boundarySaturation!(sys.ρ, sys.s, p)
+    ρ̂₁ = density.(ideal_gas, sys.P)
+    ρ̂₂ = density.(tait_C₅H₁₂, sys.P)
+    boundarySaturation!(ρ̂₁, ρ̂₂, sys.s, p)
 end
 
 function initialSaturation!(
-        ρ::AbstractArray{T, 3},
+        ρ̂₁::AbstractMatrix{T},
+        ρ̂₂::AbstractMatrix{T},
         s::AbstractMatrix{T}, p) where T<:AbstractFloat
-    @. @views s[:, :] = (ρ[1, :, :] /
-                         ρ[2, :, :] * p.M[1] / p.M[2] /
+    @. @views s[:, :] = (ρ̂₁[:, :] /
+                         ρ̂₂[:, :] * p.M[1] / p.M[2] /
                          p.ψ₀ + 1)^(-1)
 end
 
 function initialSaturation!(sys::System, p::Parameters)
-    initialSaturation!(sys.ρ, sys.s, p)
+    ρ̂₁ = density.(ideal_gas, sys.P)
+    ρ̂₂ = density.(tait_C₅H₁₂, sys.P)
+    initialSaturation!(ρ̂₁, ρ̂₂, sys.s, p)
 end
 
 function boundaryPressure!(P::Array{T, 2},
@@ -185,3 +214,4 @@ function boundaryVelocity!(sys::System, p::Parameters)
             P=sys.P, p=p, k=k)
     end
 end
+# -------------------------------------------------------- #

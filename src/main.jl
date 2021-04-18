@@ -53,10 +53,10 @@ let
                    sp.Pout, sp.P₀, sp.ψ, sp.ψ₀, sp.M, sp.μ)
 
     sys = filtration!(p)
-    # plot(sys, p)
-    # writedlm("pressure.txt", sys.P, ' ')
-    # writedlm("u1.txt", sys.u[1, :, :], ' ')
-    # writedlm("u2.txt", sys.u[2, :, :], ' ')
-    # writedlm("density1.txt", sys.ρ[1, :, :], ' ')
-    # writedlm("density2.txt", sys.ρ[2, :, :], ' ')
+    plot(sys, p)
+    writedlm("pressure.txt", sys.P, ' ')
+    writedlm("u1.txt", sys.u[1, :, :], ' ')
+    writedlm("u2.txt", sys.u[2, :, :], ' ')
+    writedlm("density1.txt", sys.ρ[1, :, :], ' ')
+    writedlm("density2.txt", sys.ρ[2, :, :], ' ')
 end

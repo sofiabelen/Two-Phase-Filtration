@@ -4,3 +4,4 @@ doc/*fdb_latexmk
 doc/*log
 doc/*synctex.gz
 doc/*texput*
+src/*txt

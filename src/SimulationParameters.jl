@@ -3,11 +3,10 @@ module SimulationParameters
 export Δt, nsteps, L, nx, ny, Δx, Δy, φ, K, μ, Pin, Pout,
        P₀, M, ψ, ψ₀
 
-
 # duration = 2000
 Δt = 0.000001
 # nsteps = round(Int64, duration / Δt)
-nsteps = 10
+nsteps = 0
 
 ## Space grid [0, 2] × [0, 2]
 ## Change later to 2 (how ?)
