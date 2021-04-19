@@ -98,7 +98,7 @@ end
 
 # ---------------------- BC & IC ------------------------- #
 
-function boundaryDensity!(ρ::AbstractArray{T, 3},
+function boundary_density!(ρ::AbstractArray{T, 3},
         P::AbstractMatrix{T}, s::AbstractMatrix{T},
         p::Parameters) where T<:AbstractFloat
     @. @views ρ[:, 1, 1]  = density(ideal_gas, P[:, 1]) *
@@ -120,14 +120,14 @@ function boundaryDensity!(ρ::AbstractArray{T, 3},
                                              (1 - s[p.nx,:])
 end
 
-function boundaryDensity!(sys::System, p::Parameters)
-    boundaryDensity!(sys.ρ, sys.P, sys.s, p)
+function boundary_density!(sys::System, p::Parameters)
+    boundary_density!(sys.ρ, sys.P, sys.s, p)
 end
 
 ## Inlet
 ## We derive the saturation from the molar composition
 ## ψ = ν₁ / ν₂ and the densities ρ̂₁ and ρ̂₂.
-function boundarySaturation!(
+function boundary_saturation!(
         ρ̂₁::AbstractMatrix{T},
         ρ̂₂::AbstractMatrix{T},
         s::AbstractMatrix{T},
@@ -138,13 +138,13 @@ function boundarySaturation!(
             p.M[1] / p.M[2] / p.ψ + 1)^(-1)
 end
 
-function boundarySaturation!(sys::System, p::Parameters)
+function boundary_saturation!(sys::System, p::Parameters)
     ρ̂₁ = density.(ideal_gas, sys.P)
     ρ̂₂ = density.(tait_C₅H₁₂, sys.P)
-    boundarySaturation!(ρ̂₁, ρ̂₂, sys.s, p)
+    boundary_saturation!(ρ̂₁, ρ̂₂, sys.s, p)
 end
 
-function initialSaturation!(
+function initial_saturation!(
         ρ̂₁::AbstractMatrix{T},
         ρ̂₂::AbstractMatrix{T},
         s::AbstractMatrix{T}, p) where T<:AbstractFloat
@@ -154,13 +154,13 @@ function initialSaturation!(
                          p.ψ₀ + 1)^(-1)
 end
 
-function initialSaturation!(sys::System, p::Parameters)
+function initial_saturation!(sys::System, p::Parameters)
     ρ̂₁ = density.(ideal_gas, sys.P)
     ρ̂₂ = density.(tait_C₅H₁₂, sys.P)
-    initialSaturation!(ρ̂₁, ρ̂₂, sys.s, p)
+    initial_saturation!(ρ̂₁, ρ̂₂, sys.s, p)
 end
 
-function boundaryPressure!(P::Array{T, 2},
+function boundary_pressure!(P::Array{T, 2},
         p::Parameters) where T<:AbstractFloat
     ## P = Pin at y = 0 and x ∈ [0, 1]
     @. @views P[:, 1] = 2 * p.Pin - P[:, 2]
@@ -177,11 +177,11 @@ function boundaryPressure!(P::Array{T, 2},
     #    P[nx ÷ 2 + 1: nx, 2]
 end
 
-function boundaryPressure!(sys::System, p::Parameters)
-    boundaryPressure!(sys.P, p)
+function boundary_pressure!(sys::System, p::Parameters)
+    boundary_pressure!(sys.P, p)
 end
 
-function boundaryVelocity!(; f::Function, p::Parameters,
+function boundary_velocity!(; f::Function, p::Parameters,
         k::Integer,
         s::AbstractMatrix{T},
         u::AbstractMatrix{T},
@@ -202,14 +202,14 @@ function boundaryVelocity!(; f::Function, p::Parameters,
             (P[:, 2] - P[:, 1]) / p.Δy
 end
 
-function boundaryVelocity!(sys::System, p::Parameters)
+function boundary_velocity!(sys::System, p::Parameters)
     ## s is the saturation of gas
     fgas(s) = s^2
     fliq(s) = (1 .- s)^2
     f = [fgas, fliq]
 
     for k = 1 : 2
-        @views boundaryVelocity!(f=f[k],
+        @views boundary_velocity!(f=f[k],
             s=sys.s, u=sys.u[:, :, k], v=sys.v[:, :, k],
             P=sys.P, p=p, k=k)
     end

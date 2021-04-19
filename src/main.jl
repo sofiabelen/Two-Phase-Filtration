@@ -7,12 +7,12 @@ include("SimulationParameters.jl")
 function update!(syswork::System, sysnext::System,
         p::Parameters)
     continuity_equation!(syswork, sysnext, p)
-    findPressure!(sysnext, p)
-    boundaryPressure!(sysnext, p)
-    boundaryDensity!(sysnext, p) 
-    boundarySaturation!(sysnext, p)
+    find_pressure!(sysnext, p)
+    boundary_pressure!(sysnext, p)
+    boundary_density!(sysnext, p) 
+    boundary_saturation!(sysnext, p)
     darcy!(sysnext, p)
-    boundaryVelocity!(sysnext, p)
+    boundary_velocity!(sysnext, p)
 end
 
 function init(p::Parameters)
@@ -24,10 +24,10 @@ function init(p::Parameters)
 
     sys = System(u, v, ρ, P, s)
 
-    boundaryPressure!(sys, p)
+    boundary_pressure!(sys, p)
     density!(sys)
-    initialSaturation!(sys, p)
-    boundaryVelocity!(sys, p)
+    initial_saturation!(sys, p)
+    boundary_velocity!(sys, p)
 
     return sys
 end

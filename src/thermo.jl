@@ -35,7 +35,7 @@ end
 
 
 # -------------------- Pressure -------------------------- #
-function binarySearch(; f, left, right, niter=50, eps_x=1e-6)
+function binary_search(; f, left, right, niter=50, eps_x=1e-6)
     mid = left
     for i = 1 : niter
         mid = (left + right) / 2
@@ -50,7 +50,7 @@ function binarySearch(; f, left, right, niter=50, eps_x=1e-6)
     return error("root of function couldn't be found.")
 end
 
-function findPressure(; ρ₁::T, ρ₂::T, V::T,
+function find_pressure(; ρ₁::T, ρ₂::T, V::T,
         tait::TaitEoS, igas::IdealGasEoS,
         p::Parameters,
         left=1e4, right=1e7, niter=50,
@@ -64,17 +64,17 @@ function findPressure(; ρ₁::T, ρ₂::T, V::T,
             log10((tait.B + P) / (tait.B + tait.P₀))
     end
 
-    P = binarySearch(; f, left, right, eps_x)
+    P = binary_search(; f, left, right, eps_x)
     ρ̂₁ = density(igas, P)
     s = ρ₁ / ρ̂₁
 
     return P, s
 end
 
-function findPressure!(sys::System, p::Parameters)
+function find_pressure!(sys::System, p::Parameters)
     for index in CartesianIndices(sys.P)
         i, j = Tuple(index)
-        sys.P[i, j], sys.s[i, j] = findPressure(p=p,
+        sys.P[i, j], sys.s[i, j] = find_pressure(p=p,
                                     ρ₁=sys.ρ[i, j, 1],
                                     ρ₂=sys.ρ[i, j, 2],
                                     V=p.Δx * p.Δy,
