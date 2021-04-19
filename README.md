@@ -1,4 +1,6 @@
-- `doc/` - compact documentation of physical model and progress tracking.
+# Two-dimensional Filtration of Ideal Gas and Pentane
+
+- `doc/` - compact documentation and progress tracking.
 - `src/` - source code.
     - `main` - entry point.
     - `physics` - physical and EoS parameters.
