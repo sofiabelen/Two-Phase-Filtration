@@ -17,10 +17,10 @@ end
 
 function init(p::Parameters)
     P = fill(p.P₀, p.nx, p.ny)
-    u = zeros(2, p.nx, p.ny)
-    v = zeros(2, p.nx, p.ny)
     s = zeros(p.nx, p.ny)
-    ρ = zeros(2, p.nx, p.ny)
+    u = zeros(p.nx, p.ny, 2)
+    v = zeros(p.nx, p.ny, 2)
+    ρ = zeros(p.nx, p.ny, 2)
 
     sys = System(u, v, ρ, P, s)
 
@@ -55,8 +55,8 @@ let
     sys = filtration!(p)
     plot(sys, p)
     writedlm("pressure.txt", sys.P, ' ')
-    writedlm("u1.txt", sys.u[1, :, :], ' ')
-    writedlm("u2.txt", sys.u[2, :, :], ' ')
-    writedlm("density1.txt", sys.ρ[1, :, :], ' ')
-    writedlm("density2.txt", sys.ρ[2, :, :], ' ')
+    writedlm("v1.txt", sys.v[:, :, 1], ' ')
+    writedlm("v2.txt", sys.v[:, :, 2], ' ')
+    writedlm("density1.txt", sys.ρ[:, :, 1], ' ')
+    writedlm("density2.txt", sys.ρ[:, :, 2], ' ')
 end

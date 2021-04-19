@@ -4,14 +4,14 @@ export Δt, nsteps, L, nx, ny, Δx, Δy, φ, K, μ, Pin, Pout,
        P₀, M, ψ, ψ₀
 
 # duration = 2000
-Δt = 0.000001
+Δt = 0.0001
 # nsteps = round(Int64, duration / Δt)
-nsteps = 0
+nsteps = 1
 
 ## Space grid [0, 2] × [0, 2]
 ## Change later to 2 (how ?)
 L = 2
-nx = ny = 40
+nx = ny = 100
 Δx = Δy = L / nx
 
 ## Porosity
@@ -33,7 +33,7 @@ M = [0.028, 0.07215]
 
 ## Molar Composition on the Inlet
 ## ψ = ν₁ / ν₂ = (m₁ / M₁) / (m₂ / M₂)
-ψ = 0.3
+ψ = 100.0
 
 ## Initial Molar Composition
 ψ₀ = ψ

@@ -5,7 +5,7 @@ using PyPlot
 function plot(u::AbstractArray{T, 3},
         v::AbstractArray{T, 3},
         P::AbstractMatrix{T}, p) where T<:AbstractFloat
-    fig = PyPlot.figure(figsize=(10, 10))
+    fig = PyPlot.figure(figsize=(9, 8))
     ax = PyPlot.axes()
     ax.set_xlabel("x")
     ax.set_ylabel("y")
@@ -19,12 +19,12 @@ function plot(u::AbstractArray{T, 3},
     
     ## Velocity vector field
     #scale = 100.0
-    quiver(x, y, u[1, :, :]', v[1, :, :]', color="r")
-    quiver(x, y, u[2, :, :]', v[2, :, :]', color="b")
+    quiver(x, y, u[:, :, 1]', v[:, :, 1]', color="r")
+    quiver(x, y, u[:, :, 2]', v[:, :, 2]', color="b")
     
     ## Pressure contour map
     pos = ax.contourf(X, Y, P',
-        cmap=matplotlib.cm.viridis)
+        cmap=matplotlib.cm.viridis, alpha=0.5)
     fig.colorbar(pos, ax=ax)
     # cp = contour(X, Y, P', cmap=matplotlib.cm.viridis)
 

@@ -26,9 +26,9 @@ function density(x::IdealGasEoS, P::AbstractFloat)
 end
 
 function density!(sys::System)
-    @. @views sys.ρ[1, :, :] = density(ideal_gas, sys.P) *
+    @. @views sys.ρ[:, :, 1] = density(ideal_gas, sys.P) *
                                       sys.s
-    @. @views sys.ρ[2, :, :] = density(tait_C₅H₁₂, sys.P) *
+    @. @views sys.ρ[:, :, 2] = density(tait_C₅H₁₂, sys.P) *
                                       (1 - sys.s)
 end
 # -------------------------------------------------------- #
@@ -75,8 +75,8 @@ function findPressure!(sys::System, p::Parameters)
     for index in CartesianIndices(sys.P)
         i, j = Tuple(index)
         sys.P[i, j], sys.s[i, j] = findPressure(p=p,
-                                    ρ₁=sys.ρ[1, i, j],
-                                    ρ₂=sys.ρ[2, i, j],
+                                    ρ₁=sys.ρ[i, j, 1],
+                                    ρ₂=sys.ρ[i, j, 2],
                                     V=p.Δx * p.Δy,
                                     tait=tait_C₅H₁₂,
                                     igas=ideal_gas)
