@@ -2,7 +2,8 @@
 
 \author{}
 \date{}
-\title{Filtration of Ideal Gas and Pentane \(\left( C_5 H_{12} \right) \)}
+\title{Filtration of Ideal Gas and Pentane
+\(\left( C_5 H_{12} \right) \)}
 
 \usepackage[margin=0.9in]{geometry}
 \usepackage{graphicx}
@@ -22,7 +23,9 @@
 
 \begin{document}
 \maketitle
+
 \section{The Physics}
+
 We simulate 2d flow of ideal gas and \(C_5H_{12}\) through a
 porous medium with the help of Darcy's law:
 \begin{equation}
@@ -51,7 +54,7 @@ where \(\rho_i = \frac{m_i}{V}\).
 
 We use the Tait equation to relate liquid density to pressure:
 \begin{equation}
-    \frac{\rho - \rho_0}{\rho} = C \log_{10}
+    \frac{\hat{\rho} - \rho_0}{\hat{\rho}} = C \log_{10}
     \frac{B + P}{B + P_0}
 \end{equation}
 where \(C = 0.2105\),
@@ -60,8 +63,9 @@ where \(C = 0.2105\),
 in the case of \(C_5H_{12}\).
 
 Ideal gas equation of state:
+
 \begin{equation}
-    P = \frac{RT}{M}\rho
+    P = \frac{RT}{M} \hat{\rho}
 \end{equation}
 
 \section{Boundary and Initial Conditions}
@@ -73,9 +77,9 @@ pressure gradient using Darcy's law and the
 saturation from the densities
 and molar composition.
 
-{\color{red}All our BC are 2-nd order (thanks to ghost
+All our BC are 2-nd order (thanks to ghost
     cells), except for the BC on velocity on the inlet
-and outlet, which end up being 1-st order.}
+and outlet, which end up 1-st order.
 
 \begin{figure}[H]
     \centering
@@ -146,30 +150,29 @@ We derive the densities from the equations of state.
     then we can find the saturation.
 
     \[
-    \rho_1 = \frac{m_1}{sV}, \qquad
-    \rho_2 = \frac{m_2}{(1 - s)V}
+    \hat \rho_1 = \frac{m_1}{sV}, \qquad
+    \hat \rho_2 = \frac{m_2}{(1 - s)V}
     \] 
 
     \[
-    \frac{\rho_1}{\rho_2} = \frac{m_1}{m_2}
+    \frac{\hat \rho_1}{\hat \rho_2} = \frac{m_1}{m_2}
     \frac{1 - s}{s}
-    = \psi \frac{M_2}{M_1}\frac{1 - s}{s}
+    = \frac{\psi M_1}{(1 - \psi) M_2}\frac{1 - s}{s}
     \] 
 
     \[
         s = \left( 
-        \frac{\rho_1 M_1}{\rho_2 M_2 \psi} + 1 \right)^{-1}
+        \frac{\hat \rho_1 M_2(1 - \psi) }{\hat \rho_2 M_1 \psi}
+    + 1 \right)^{-1}
     \] 
 
-    {\color{red}What about everywhere else???}
-
-    On outlet:
+    \textbf{On outlet:}
 
     \[
     \frac{\partial \alpha}{\partial \bm{n}} = 0
     \] 
 
-    Or:
+    Or,
 
     \[
     \frac{\partial s}{\partial \bm{n}} = 0 
@@ -213,10 +216,54 @@ Second order in space.
     \frac{P_{i, j + 1}^n - P_{i, j - 1}^n}{2\Delta y}
 \] 
 
+\section{Finding Pressure using Binary Search}
+
+The function \emph{find\_pressure} takes as arguments
+\(\rho_1\) and \(\rho_2\), which are defined as
+
+\[
+\rho_1 = \frac{m_1}{V}, \qquad
+\rho_2 = \frac{m_2}{V}
+.\] 
+
+We try to find the zero of the following function, that
+takes the pressure as an argument:
+
+\begin{equation*}
+    f(P) = \frac{\hat{\rho_2} - \rho_0}{\hat{\rho_2}}
+    - C \log_{10} \frac{B + P}{B + P_0}
+.\end{equation*}
+
+Here, \(\hat{\rho_2} = \frac{m_2}{(1 - s)V}\).
+In order to determine \(\hat{\rho_2}\), we first find
+\(\hat{\rho_1}\) using the EoS, and from there, we are
+able to find the saturation
+\(s = \frac{\rho_1}{\hat{\rho_1}}\).
+Lastly, we determine \(\hat{\rho_2} = \frac{\rho_2}{1 - s}\).
+
+% function findPressure(; ρ̂₁::T, ρ̂₂::T, V::T,
+%         tait::TaitEoS, igas::IdealGasEoS,
+%         p::Parameters,
+%         left=1e4, right=1e7, niter=50,
+%         eps_x=1e-6) where T<:AbstractFloat
+% 
+%     function f(P::AbstractFloat)
+%         ρ₁ = density(igas, P)
+%         s = ρ̂₁ / ρ₁
+%         ρ₂ = ρ̂₂ / (1 - s)
+%         return (ρ₂ - tait.ρ₀) / ρ₂ - tait.C *
+%             log10((tait.B + P) / (tait.B + tait.P₀))
+%     end
+% 
+%     P = binarySearch(; f, left, right, eps_x)
+%     ρ₁ = density(igas, P)
+%     s = ρ̂₁ / ρ₁
+%     return P, s
+% end
+% 
 \section{Algorithm}
 
 Euler method for discretization with respect to time.
-(TODO: upgrade to predictor-corrector).
 
 Second order scheme in space, with the use of ghost cells. 
 
@@ -297,20 +344,38 @@ Second order scheme in space, with the use of ghost cells.
         condition on the saturation, since we can derive
     the densities from the equations of state.}
 
-    \item Change order of indexing: column major storage
-        in memory.
+    \item \sout{Change order of indexing: column major
+            storage in memory.}
 
-    \item Use naming conventions consistent with Julia base.
-
-Functions are lowercase (maximum, convert) and, when readable, 
-with multiple words squashed together.
-When necessary, use underscores as word separators.
-
-    \item Upgrade to predictor-corrector
+    \item \sout{Use naming conventions consistent with
+            Julia base.}
 
     \item Use Real instead of T in functions' parameters.
 
     \item Create modules.
+
+    \item \sout{Change density convention on 
+        'BC: Saturation'.}
+
+    \item \sout{Bug: The density functions don't
+    take into account the saturation!}
+
+    \item \sout{BC on outlet for saturation.}
+
+    \item Upgrade to predictor-corrector.
+
+\end{enumerate}
+
+\section{Conventions}
+
+\begin{enumerate}
+
+    \item Density:
+
+        \[
+            \rho_i = \frac{m_i}{V}, \qquad
+            \hat{\rho_i} = \frac{m_i}{s_i V}
+        .\] 
 
 \end{enumerate}
 \end{document}

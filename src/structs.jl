@@ -1,9 +1,8 @@
-## Change index -> [i, j, k]
-## index [k, i, j], where k=1,2 is the component: 
+## index [i, j, k], where k=1,2 is the component: 
 ## 1 - gas,
 ## 2 - liquid;
-## i, j are x and y spatial coordinates.
 ## [i, j] -> x, y
+#
 mutable struct System{T<:AbstractFloat}
     u::Array{T, 3}
     v::Array{T, 3}

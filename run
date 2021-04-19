@@ -1,4 +1,0 @@
-#!/bin/bash
-
-julia porous-medium-darcy.jl
-sxiv img/porous-medium-darcy.png
