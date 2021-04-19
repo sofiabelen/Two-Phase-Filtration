@@ -127,15 +127,18 @@ end
 ## Inlet
 ## We derive the saturation from the molar composition
 ## ψ = ν₁ / ν₂ and the densities ρ̂₁ and ρ̂₂.
+
+## Outlet
+## ∂s / ∂n⃗ = 0
 function boundary_saturation!(
         ρ̂₁::AbstractMatrix{T},
         ρ̂₂::AbstractMatrix{T},
         s::AbstractMatrix{T},
         p::Parameters) where T<:AbstractFloat
 
-    @. @views s[1: p.nx ÷ 2, 1] = (ρ̂₁[1: p.nx ÷ 2, 1] /
-            ρ̂₂[1: p.nx ÷ 2, 1] *
+    @. @views s[:, 1] = (ρ̂₁[:, 1] / ρ̂₂[:, 1] *
             p.M[1] / p.M[2] / p.ψ + 1)^(-1)
+    @. @views s[:, ny] = s[:, ny - 1]
 end
 
 function boundary_saturation!(sys::System, p::Parameters)
@@ -191,11 +194,7 @@ function boundary_velocity!(; f::Function, p::Parameters,
     @. @views u[1, :] = -u[2, :]
     @. @views u[p.nx, :] = -u[p.nx - 1, :]
 
-    ## v = 0 at y = 0 and x ∈ [1, 2]
-    # @. @views v[1, nx ÷ 2 + 1: nx] =
-    #     -v[2, nx ÷ 2 + 1: nx]
-
-    ## Darcy 
+    ## Darcy at y = 0, 2 (inlet & outlet)
     @. @views v[:, p.ny] = -p.K / p.μ[k] * f(s[:, p.ny]) *
             (P[:, p.ny] - P[:, p.ny - 1]) / p.Δy
     @. @views v[:, 1] =  -p.K / p.μ[k] * f(s[:, 1]) *

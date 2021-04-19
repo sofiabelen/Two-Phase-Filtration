@@ -265,7 +265,6 @@ Lastly, we determine \(\hat{\rho_2} = \frac{\rho_2}{1 - s}\).
 \section{Algorithm}
 
 Euler method for discretization with respect to time.
-(TODO: upgrade to predictor-corrector).
 
 Second order scheme in space, with the use of ghost cells. 
 
@@ -352,8 +351,6 @@ Second order scheme in space, with the use of ghost cells.
     \item \sout{Use naming conventions consistent with
             Julia base.}
 
-    \item Upgrade to predictor-corrector
-
     \item Use Real instead of T in functions' parameters.
 
     \item Create modules.
@@ -363,6 +360,10 @@ Second order scheme in space, with the use of ghost cells.
 
     \item \sout{Bug: The density functions don't
     take into account the saturation!}
+
+    \item \sout{BC on outlet for saturation.}
+
+    \item Upgrade to predictor-corrector.
 
 \end{enumerate}
 
