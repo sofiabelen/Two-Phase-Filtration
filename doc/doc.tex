@@ -2,7 +2,8 @@
 
 \author{}
 \date{}
-\title{Filtration of Ideal Gas and Pentane \(\left( C_5 H_{12} \right) \)}
+\title{Filtration of Ideal Gas and Pentane
+\(\left( C_5 H_{12} \right) \)}
 
 \usepackage[margin=0.9in]{geometry}
 \usepackage{graphicx}
@@ -76,9 +77,9 @@ pressure gradient using Darcy's law and the
 saturation from the densities
 and molar composition.
 
-{\color{red}All our BC are 2-nd order (thanks to ghost
+All our BC are 2-nd order (thanks to ghost
     cells), except for the BC on velocity on the inlet
-and outlet, which end up 1-st order.}
+and outlet, which end up 1-st order.
 
 \begin{figure}[H]
     \centering
@@ -156,24 +157,22 @@ We derive the densities from the equations of state.
     \[
     \frac{\hat \rho_1}{\hat \rho_2} = \frac{m_1}{m_2}
     \frac{1 - s}{s}
-    = \psi \frac{M_2}{M_1}\frac{1 - s}{s}
+    = \frac{\psi M_1}{(1 - \psi) M_2}\frac{1 - s}{s}
     \] 
 
     \[
         s = \left( 
-        \frac{\hat \rho_1 M_1}{\hat \rho_2 M_2 \psi}
+        \frac{\hat \rho_1 M_2(1 - \psi) }{\hat \rho_2 M_1 \psi}
     + 1 \right)^{-1}
     \] 
 
-    {\color{red}What about everywhere else???}
-
-    On outlet:
+    \textbf{On outlet:}
 
     \[
     \frac{\partial \alpha}{\partial \bm{n}} = 0
     \] 
 
-    Or:
+    Or,
 
     \[
     \frac{\partial s}{\partial \bm{n}} = 0 
@@ -219,7 +218,7 @@ Second order in space.
 
 \section{Finding Pressure using Binary Search}
 
-The function \emph{findPressure} takes as arguments
+The function \emph{find\_pressure} takes as arguments
 \(\rho_1\) and \(\rho_2\), which are defined as
 
 \[

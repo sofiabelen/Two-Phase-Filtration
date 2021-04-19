@@ -4,9 +4,9 @@ export Δt, nsteps, L, nx, ny, Δx, Δy, φ, K, μ, Pin, Pout,
        P₀, M, ψ, ψ₀
 
 # duration = 2000
-Δt = 0.0001
+Δt = 0.00000001
 # nsteps = round(Int64, duration / Δt)
-nsteps = 100
+nsteps = 0
 
 ## Space grid [0, 2] × [0, 2]
 ## Change later to 2 (how ?)
@@ -33,7 +33,7 @@ M = [0.028, 0.07215]
 
 ## Molar Composition on the Inlet
 ## ψ = ν₁ / ν₂ = (m₁ / M₁) / (m₂ / M₂)
-ψ = 100.0
+ψ = 0.5
 
 ## Initial Molar Composition
 ψ₀ = ψ

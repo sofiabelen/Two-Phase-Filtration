@@ -137,7 +137,8 @@ function boundary_saturation!(
         p::Parameters) where T<:AbstractFloat
 
     @. @views s[:, 1] = (ρ̂₁[:, 1] / ρ̂₂[:, 1] *
-            p.M[1] / p.M[2] / p.ψ + 1)^(-1)
+                         p.M[2] * (1 - p.ψ) / p.M[1] /
+                         p.ψ + 1)^(-1)
     @. @views s[:, ny] = s[:, ny - 1]
 end
 
@@ -153,8 +154,8 @@ function initial_saturation!(
         s::AbstractMatrix{T}, p) where T<:AbstractFloat
 
     @. @views s[:, :] = (ρ̂₁[:, :] /
-                         ρ̂₂[:, :] * p.M[1] / p.M[2] /
-                         p.ψ₀ + 1)^(-1)
+                         ρ̂₂[:, :] * p.M[2] * (1 - p.ψ₀) /
+                         p.M[1] / p.ψ₀ + 1)^(-1)
 end
 
 function initial_saturation!(sys::System, p::Parameters)

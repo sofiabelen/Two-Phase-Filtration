@@ -50,7 +50,7 @@ function binary_search(; f, left, right, niter=50, eps_x=1e-6)
     return error("root of function couldn't be found.")
 end
 
-function find_pressure(; ρ₁::T, ρ₂::T, V::T,
+function find_pressure(; ρ₁::T, ρ₂::T,
         tait::TaitEoS, igas::IdealGasEoS,
         p::Parameters,
         left=1e4, right=1e7, niter=50,
@@ -77,7 +77,6 @@ function find_pressure!(sys::System, p::Parameters)
         sys.P[i, j], sys.s[i, j] = find_pressure(p=p,
                                     ρ₁=sys.ρ[i, j, 1],
                                     ρ₂=sys.ρ[i, j, 2],
-                                    V=p.Δx * p.Δy,
                                     tait=tait_C₅H₁₂,
                                     igas=ideal_gas)
     end
