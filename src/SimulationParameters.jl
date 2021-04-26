@@ -1,17 +1,19 @@
 module SimulationParameters
 
+include("physics.jl")
+
 export Δt, nsteps, L, nx, ny, Δx, Δy, φ, K, μ, Pin, Pout,
        P₀, M, ψ, ψ₀
 
 # duration = 2000
-Δt = 0.00000001
+Δt = 0.00001
 # nsteps = round(Int64, duration / Δt)
-nsteps = 0
+nsteps = 100
 
 ## Space grid [0, 2] × [0, 2]
 ## Change later to 2 (how ?)
 L = 2
-nx = ny = 100
+nx = ny = 4
 Δx = Δy = L / nx
 
 ## Porosity
@@ -29,10 +31,9 @@ Pout = 1e5
 P₀ = Pout
 
 ## Molar masses
-M = [0.028, 0.07215]
+M = [MOLAR_MASS_IGAS, MOLAR_MASS_PENTANE]
 
 ## Molar Composition on the Inlet
-## ψ = ν₁ / ν₂ = (m₁ / M₁) / (m₂ / M₂)
 ψ = 0.5
 
 ## Initial Molar Composition
