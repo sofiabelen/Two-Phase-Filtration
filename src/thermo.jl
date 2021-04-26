@@ -72,12 +72,13 @@ function find_pressure(; ρ₁::T, ρ₂::T,
         return (ρ̂₂ - tait.ρ₀) / ρ̂₂ - tait.C *
             log10((tait.B + P) / (tait.B + tait.P₀))
     end
+    let
+        P  = binary_search(; f, left, right, eps_x)
+        ρ̂₁ = density(igas, P)
+        s  = ρ₁ / ρ̂₁
 
-    P = binary_search(; f, left, right, eps_x)
-    ρ̂₁ = density(igas, P)
-    s = ρ₁ / ρ̂₁
-
-    return P, s
+        return P, s
+    end
 end
 
 function find_pressure!(sys::System, p::Parameters)
