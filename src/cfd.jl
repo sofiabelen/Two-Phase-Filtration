@@ -43,17 +43,20 @@ function continuity_equation!(;
                  ρc * (vn - vs) / (2 * p.Δy))
         end
     end
+    @debug ρnext ρwork
 end
 
 function continuity_equation!(syswork::System, 
         sysnext::System, p::Parameters)
     for k = 1 : 2
+        @debug "Component $k continuity eqn"
         @views continuity_equation!(ρnext=sysnext.ρ[:, :, k], 
                                     ρwork=syswork.ρ[:, :, k],
                                     uwork=syswork.u[:, :, k],
                                     vwork=syswork.v[:, :, k],
                                     p=p)
     end
+    @debug "Saturation " sysnext.s
 end
 # -------------------------------------------------------- #
 
@@ -168,6 +171,11 @@ function boundary_pressure!(P::Array{T, 2},
         p::Parameters) where T<:AbstractFloat
     ## P = Pin at y = 0 and x ∈ [0, 1]
     @. @views P[:, 1] = 2 * p.Pin - P[:, 2]
+    # println("Pin: ", p.Pin)
+    # println("P[:, 2]:", P[:, 2])
+    # println("P[:, 1]:", P[:, 1])
+    ## Here we are getting negative pressure because
+    ## Pin < P[:, 2]
 
     ## P = Pout at y = 2
     @. @views P[:, p.ny] = 2 * p.Pout - P[:, p.ny - 1]
@@ -197,9 +205,10 @@ function boundary_velocity!(; f::Function, p::Parameters,
 
     ## Darcy at y = 0, 2 (inlet & outlet)
     @. @views v[:, p.ny] = -p.K / p.μ[k] * f(s[:, p.ny]) *
-            (P[:, p.ny] - P[:, p.ny - 1]) / p.Δy
+            (2 * P[:, ny - 1] - P[:, ny - 2] / 2 -
+             3 / 2 * P[:, ny]) / (-p.Δy)
     @. @views v[:, 1] =  -p.K / p.μ[k] * f(s[:, 1]) *
-            (P[:, 2] - P[:, 1]) / p.Δy
+    (2 * P[:, 2] - P[:, 3] / 2 - 3 / 2 * P[:, 1]) / p.Δy
 end
 
 function boundary_velocity!(sys::System, p::Parameters)
