@@ -205,10 +205,12 @@ function boundary_velocity!(; f::Function, p::Parameters,
 
     ## Darcy at y = 0, 2 (inlet & outlet)
     @. @views v[:, p.ny] = -p.K / p.μ[k] * f(s[:, p.ny]) *
-            (2 * P[:, ny - 1] - P[:, ny - 2] / 2 -
-             3 / 2 * P[:, ny]) / (-p.Δy)
+    (-3 * P[:, ny] + 4 * P[:, ny - 1] - P[:, ny - 2]) /
+    (-2 * p.Δy)
+
     @. @views v[:, 1] =  -p.K / p.μ[k] * f(s[:, 1]) *
-    (2 * P[:, 2] - P[:, 3] / 2 - 3 / 2 * P[:, 1]) / p.Δy
+    (-3 * P[:, 1]  + 4 * P[:, 2]      - P[:, 3]) /
+    (2 * p.Δy)
 end
 
 function boundary_velocity!(sys::System, p::Parameters)

@@ -76,9 +76,9 @@ pressure gradient using Darcy's law and the
 saturation from the densities
 and molar composition.
 
-All our BC are 2-nd order (thanks to ghost
-    cells), except for the BC on velocity on the inlet
-and outlet, which end up 1-st order.
+% All our BC are 2-nd order (thanks to ghost
+%     cells), except for the BC on velocity on the inlet
+% and outlet, which end up 1-st order.
 
 \begin{figure}[H]
     \centering
@@ -115,7 +115,7 @@ and outlet, which end up 1-st order.
 
 \subsection{Velocities}
 
-\textbf{IC:} Darcy 1-st order.
+\textbf{IC:} Darcy 2-nd order.
 
 \textbf{BC:}
 
@@ -123,9 +123,9 @@ and outlet, which end up 1-st order.
 \begin{cases}
     u = 0 &\text{at } x = 0, 2 \\
     v = 0 &\text{at } y = 0 \text{ and } x \in [1, 2] \\
-    {\color{red}\text{Darcy (1-st Order)}}
+    \text{Darcy (2-nd Order FD)}
           &\text{at } y = 2 \\
-    {\color{red}\text{Darcy (1-st Order)}}
+    \text{Darcy (2-nd Order FD)}
           &\text{at } y = 0
     \text{ and } x \in [0, 1]\\
 \end{cases}
@@ -183,8 +183,6 @@ We use the finite difference method (FDM).
 
 \subsection{Continuity Equation}
 
-Second order in space. First order in time.
-
 \[
 \frac{\partial \rho}{\partial t}
 + \frac{\partial \rho}{\partial x} u
@@ -203,8 +201,6 @@ Second order in space. First order in time.
 
 \subsection{Darcy's Law}
 
-Second order in space.
-
 \[
     u_{i,j}^n = -\frac{K}{\mu} f_\alpha (s_{i, j}^n)
     \frac{P_{i + 1, j}^n - P_{i - 1, j}^n}{2\Delta x} \\
@@ -213,6 +209,21 @@ Second order in space.
 \[
     v_{i,j}^n = -\frac{K}{\mu} f_\alpha(s_{i, j}^n)
     \frac{P_{i, j + 1}^n - P_{i, j - 1}^n}{2\Delta y}
+\] 
+
+\subsubsection{BC}
+
+\[
+    v_{i, 1}^n = -\frac{K}{\mu} f_\alpha(s_{i, 1}^n)
+    \frac{-3 P_{i, 1}^n + 4 P_{i, 2}^n - P_{i, 3}^n }
+    {2 \Delta x} \qquad \text{(Inlet)}
+\] 
+
+\[
+    v_{i, ny}^n = -\frac{K}{\mu} f_\alpha(s_{i, ny}^n)
+    \frac{-3 P_{i, ny}^n + 4 P_{i, ny - 1}^n
+    - P_{i, ny - 2}^n }{(-2 \Delta x)}
+    \qquad \text{(Outlet)}
 \] 
 
 \section{Finding Pressure using Binary Search}
