@@ -1,5 +1,6 @@
 include("structs.jl")
 include("physics.jl")
+include("computational.jl")
 
 Broadcast.broadcastable(eos::TaitEoS) = Ref(eos)
 Broadcast.BroadcastStyle(::Type{<:TaitEoS}) = 
@@ -38,42 +39,31 @@ end
 
 
 # -------------------- Pressure -------------------------- #
-function binary_search(; f, left, right, niter=50, eps_x=1e-6)
-    fleft = f(left)
-    fright = f(right)
-    mid = (left + right) / 2
-    for i = 1 : niter
-        mid = (left + right) / 2
-        if abs(right - left) < eps_x
-            return mid
-        end
-        fmid = f(mid)
-        fmid == 0 && return mid
-        if sign(fmid) == sign(fleft)
-            left = mid
-            fleft = fmid
-        else
-            right = mid
-            fright = fmid
-        end
-    end
-    return error("root of function couldn't be found: mid = ", mid)
-end
 
-function find_pressure(; ρ₁::T, ρ₂::T,
+function find_pressure(; root_finder::Function, ρ₁::T, ρ₂::T,
         tait::TaitEoS, igas::IdealGasEoS,
-        p::Parameters, left=1e4, right=1e8, niter=50,
-        eps_x=1e-6) where T<:AbstractFloat
+        p::Parameters, niter::Integer=50,
+        eps_x::T=1e-6)::Tuple{T, T} where T<:AbstractFloat
 
-    function f(P::AbstractFloat)
+    function f(P::T)::T where T<:AbstractFloat
         ρ̂₁ = density(igas, P)
-        s = ρ₁ / ρ̂₁
+        s  = ρ₁ / ρ̂₁
         ρ̂₂ = ρ₂ / (1 - s)
         return (ρ̂₂ - tait.ρ₀) / ρ̂₂ - tait.C *
             log10((tait.B + P) / (tait.B + tait.P₀))
     end
+
+    function fder(P::T)::T where T<:AbstractFloat
+        ρ̂₁ = density(igas, P)
+        s  = ρ₁ / ρ̂₁
+        ρ̂₂ = ρ₂ / (1 - s)
+        return -tait.ρ₀ / ρ̂₂^2  * R * igas.T * igas.M *
+            ρ₁ * ρ₂ / (igas.M * P - R * igas.T * ρ₁)^2 -
+            tait.C / (tait.B + P) / log(10)
+    end
+
     let
-        P  = binary_search(; f, left, right, eps_x)
+        P  = root_finder(; f=f, fder=fder, eps_x=eps_x)
         ρ̂₁ = density(igas, P)
         s  = ρ₁ / ρ̂₁
 
@@ -84,12 +74,24 @@ end
 function find_pressure!(sys::System, p::Parameters)
     for index in CartesianIndices(sys.P)
         i, j = Tuple(index)
-        sys.P[i, j], sys.s[i, j] = find_pressure(p=p,
-                                    ρ₁=sys.ρ[i, j, 1],
-                                    ρ₂=sys.ρ[i, j, 2],
-                                    tait=tait_C₅H₁₂,
-                                    igas=ideal_gas)
+        ## This gives seg fault, but is type stable
+        # (sys.P[i, j], sys.s[i, j])::Tuple{T, T} =
+        #             find_pressure(p=p,
+        #             root_finder=newton_raphson,
+        #             ρ₁=sys.ρ[i, j, 1],
+        #             ρ₂=sys.ρ[i, j, 2],
+        #             tait=tait_C₅H₁₂,
+        #             igas=ideal_gas) where T<:AbstractFloat
+        #
+
+        ## Type unstable
+        sys.P[i, j], sys.s[i, j] =
+                   find_pressure(p=p,
+                   root_finder=newton_raphson,
+                   ρ₁=sys.ρ[i, j, 1],
+                   ρ₂=sys.ρ[i, j, 2],
+                   tait=tait_C₅H₁₂,
+                   igas=ideal_gas)
     end
-    @debug "Pressure " sys.P
 end
 # -------------------------------------------------------- #

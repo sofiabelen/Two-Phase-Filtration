@@ -280,7 +280,7 @@ Second order scheme in space, with the use of ghost cells.
 \begin{enumerate}
     \item Calculate densities for each component using EOS.
     \item Find the pressure and saturation with the
-        help of binary search.
+        help of the Newton Raphson method.
     \item Use Darcy's law to calculate velocities.
 \end{enumerate}
 
@@ -371,10 +371,15 @@ Second order scheme in space, with the use of ghost cells.
     take into account the saturation!}
 
 
-    \item Fix: When initializing the system, it
+    \item \sout{Fix: When initializing the system, it
         turns out that the pressure doesn't converge
         with the gas EoS. (Although it aligns with the
-        liquid EoS).
+    liquid EoS).}
+
+    \item \sout{Replace binary search with a more efficient
+        algorithm.}
+    
+    \item Profile and optimize code.
 
     \item Upgrade to predictor-corrector.
 
@@ -392,4 +397,15 @@ Second order scheme in space, with the use of ghost cells.
         .\] 
 
 \end{enumerate}
+
+% warntype
+% 
+% julia> include("main.jl")
+% julia> \@code_warntype find_pressure(ρ₁=1.1, ρ₂=2.0, tait=tait_C₅H₁₂, igas=ideal_gas, p=p, right=1e4, left=1e8, niter=50, eps_x=1e-6)section{Miscellaneous}
+
+% profiling
+% julia> using ProfileVega
+% julia> include("main.jl")
+% julia> @profview filtration!(p)
+
 \end{document}

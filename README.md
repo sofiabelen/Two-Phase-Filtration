@@ -22,6 +22,8 @@ JULIA_DEBUG=Main julia src/main.jl
     - `physics` - physical and EoS parameters.
     - `cfd` - hydrodynamics solver.
     - `thermo` - thermodynamics functions.
+    - `computational` - computational methods.
+    - `dump` - data dump + plot.
     - `SimulationParameters` - simulation parameters.
 - `test/` - for unit testing.
 - `aux/` - supplementary problems leading up to main project.

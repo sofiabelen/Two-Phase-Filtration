@@ -19,6 +19,10 @@ function cnswe(arr::AbstractMatrix{T},
     return c, n, s, w, e
 end
 
+# const fgas(s::AbstractFloat)::AbstractFloat = s^2
+# const fliq(s::AbstractFloat)::AbstractFloat = (1 .- s)^2
+# const fresisting = (fgas, fliq)::Tuple{Function, Vararg{Function}}
+
 # ------------------ Continuity Equation ----------------- #
 
 ## Continuity equation to calculate ρᵢ
@@ -84,16 +88,30 @@ function darcy!(; f::Function,
 end
 
 function darcy!(sys::System, p::Parameters)
-    ## s is the saturation of gas
+    ## Same problem with type-stability as boundary_velocity
+    ## https://discourse.julialang.org/t/how-to-make-type-stable-passing-an-element-of-a-vector-of-functions/60068
+    # fgas(s) = s^2
+    # fliq(s) = (1 .- s)^2
+    # f = (fgas, fliq)
+    #
+    # for k = 1 : 2
+    #   @views darcy!(f=f[k], u=sys.u[:, :, k],
+    #                 v=sys.v[:, :, k], P=sys.P,
+    #                 s=sys.s, p=p, k=k)
+    # end
+
+    ## This is type stable
+    ## (but I'm still getting runtime dispatch in profiler)
     fgas(s) = s^2
     fliq(s) = (1 .- s)^2
-    f = [fgas, fliq]
 
-    for k = 1 : 2
-        @views darcy!(f=f[k], u=sys.u[:, :, k],
-                      v=sys.v[:, :, k], P=sys.P,
-                      s=sys.s, p=p, k=k)
-    end
+    @views darcy!(f=fgas, u=sys.u[:, :, 1],
+                  v=sys.v[:, :, 1], P=sys.P,
+                  s=sys.s, p=p, k=1)
+
+    @views darcy!(f=fliq, u=sys.u[:, :, 2],
+                  v=sys.v[:, :, 2], P=sys.P,
+                  s=sys.s, p=p, k=2)
 end
 # -------------------------------------------------------- #
 
@@ -139,6 +157,7 @@ function boundary_saturation!(
         s::AbstractMatrix{T},
         p::Parameters) where T<:AbstractFloat
 
+    ## This is type unstable.
     @. @views s[:, 1] = (ρ̂₁[:, 1] / ρ̂₂[:, 1] *
                          p.M[2] * (1 - p.ψ) / p.M[1] /
                          p.ψ + 1)^(-1)
@@ -214,15 +233,25 @@ function boundary_velocity!(; f::Function, p::Parameters,
 end
 
 function boundary_velocity!(sys::System, p::Parameters)
-    ## s is the saturation of gas
+    ## Type unstable because of 'f=f[k]'
+    ## This answer doesn't work because of views
+    ## https://discourse.julialang.org/t/how-to-make-type-stable-passing-an-element-of-a-vector-of-functions/60068
+    # for k = 1 : 2
+    #     @views boundary_velocity!(f=fresisting[k],
+    #         s=sys.s, u=sys.u[:, :, k], v=sys.v[:, :, k],
+    #         P=sys.P, p=p, k=k)
+    # end
+
     fgas(s) = s^2
     fliq(s) = (1 .- s)^2
-    f = [fgas, fliq]
 
-    for k = 1 : 2
-        @views boundary_velocity!(f=f[k],
-            s=sys.s, u=sys.u[:, :, k], v=sys.v[:, :, k],
-            P=sys.P, p=p, k=k)
-    end
+    ## This is type stable
+    @views boundary_velocity!(f=fgas,
+        s=sys.s, u=sys.u[:, :, 1], v=sys.v[:, :, 1],
+        P=sys.P, p=p, k=1)
+
+    @views boundary_velocity!(f=fliq,
+        s=sys.s, u=sys.u[:, :, 2], v=sys.v[:, :, 2],
+        P=sys.P, p=p, k=2)
 end
 # -------------------------------------------------------- #

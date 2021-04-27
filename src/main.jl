@@ -8,6 +8,10 @@ include("SimulationParameters.jl")
 using DelimitedFiles, .SimulationParameters
 sp = SimulationParameters
 
+p = Parameters(sp.nsteps, sp.nx, sp.ny, sp.L, sp.Δx,
+               sp.Δy, sp.Δt, sp.φ, sp.K, sp.Pin,
+               sp.Pout, sp.P₀, sp.ψ, sp.ψ₀, sp.M, sp.μ)
+
 function check_pressure(sys::System)
     check = 0
     for index in CartesianIndices(sys.P)
@@ -65,7 +69,7 @@ function init(p::Parameters)
     return sys
 end
 
-function filtration!(p::Parameters)
+function filtration(p::Parameters)
     syswork = init(p)
     sysnext = copy(syswork)
 
@@ -77,13 +81,9 @@ function filtration!(p::Parameters)
 end
 
 function main(p)
-    sys = filtration!(p)
+    sys = filtration(p)
     plot(sys, p)
     dump(sys, p)
 end
 
-p = Parameters(sp.nsteps, sp.nx, sp.ny, sp.L, sp.Δx,
-               sp.Δy, sp.Δt, sp.φ, sp.K, sp.Pin,
-               sp.Pout, sp.P₀, sp.ψ, sp.ψ₀, sp.M, sp.μ)
-
-main(p)
+# main(p)
