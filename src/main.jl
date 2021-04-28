@@ -86,4 +86,4 @@ function main(p)
     dump(sys, p)
 end
 
-# main(p)
+main(p)

@@ -158,7 +158,8 @@ function boundary_saturation!(
         p::Parameters) where T<:AbstractFloat
 
     ## This is type unstable.
-    @. @views s[:, 1] = (ρ̂₁[:, 1] / ρ̂₂[:, 1] *
+    @. @views s[1: p.nx ÷ 2, 1] = (ρ̂₁[1: p.nx ÷ 2, 1] /
+                                   ρ̂₂[1: p.nx ÷ 2, 1] *
                          p.M[2] * (1 - p.ψ) / p.M[1] /
                          p.ψ + 1)^(-1)
     @. @views s[:, ny] = s[:, ny - 1]
@@ -188,13 +189,8 @@ end
 
 function boundary_pressure!(P::Array{T, 2},
         p::Parameters) where T<:AbstractFloat
-    ## P = Pin at y = 0 and x ∈ [0, 1]
-    @. @views P[:, 1] = 2 * p.Pin - P[:, 2]
-    # println("Pin: ", p.Pin)
-    # println("P[:, 2]:", P[:, 2])
-    # println("P[:, 1]:", P[:, 1])
-    ## Here we are getting negative pressure because
-    ## Pin < P[:, 2]
+    ## P = Pin at y = 0 && x ∈ [0, 1]
+    @. @views P[1 : nx ÷ 2, 1] = 2 * p.Pin - P[1 : nx ÷ 2, 2]
 
     ## P = Pout at y = 2
     @. @views P[:, p.ny] = 2 * p.Pout - P[:, p.ny - 1]
@@ -203,9 +199,9 @@ function boundary_pressure!(P::Array{T, 2},
     @. @views P[p.nx, :] = P[p.nx - 1, :]
     @. @views P[1, :] = P[2, :]
 
-    ## ∂P / ∂y = 0 at y = 0 x ∈ [1, 2]
-    # @. @views P[nx ÷ 2 + 1: nx, 1] =
-    #    P[nx ÷ 2 + 1: nx, 2]
+    ## ∂P / ∂y = 0 at y = 0  && x ∈ [1, 2]
+    @. @views P[nx ÷ 2 + 1: nx, 1] =
+       P[nx ÷ 2 + 1: nx, 2]
 end
 
 function boundary_pressure!(sys::System, p::Parameters)
@@ -221,15 +217,17 @@ function boundary_velocity!(; f::Function, p::Parameters,
     ## u = 0 at x = 0, 2 (walls)
     @. @views u[1, :] = -u[2, :]
     @. @views u[p.nx, :] = -u[p.nx - 1, :]
+    ## v = 0 at y = 0 && x ∈ [1, 2]
+    @. @views v[p.nx ÷ 2 + 1: p.nx, 1] = 0
 
-    ## Darcy at y = 0, 2 (inlet & outlet)
+    ## Darcy at y = 0 && x ∈ [0, 1], y = 2 (inlet & outlet)
+    @. @views v[1: nx ÷ 2, 1] =  -p.K / p.μ[k] *
+     f(s[1: nx ÷ 2, 1]) * (-3 * P[1 : nx ÷ 2, 1] +
+     4 * P[1 : nx ÷ 2, 2] - P[1 : nx ÷ 2, 3]) / (2 * p.Δy)
+
     @. @views v[:, p.ny] = -p.K / p.μ[k] * f(s[:, p.ny]) *
     (-3 * P[:, ny] + 4 * P[:, ny - 1] - P[:, ny - 2]) /
     (-2 * p.Δy)
-
-    @. @views v[:, 1] =  -p.K / p.μ[k] * f(s[:, 1]) *
-    (-3 * P[:, 1]  + 4 * P[:, 2]      - P[:, 3]) /
-    (2 * p.Δy)
 end
 
 function boundary_velocity!(sys::System, p::Parameters)

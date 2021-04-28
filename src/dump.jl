@@ -2,12 +2,14 @@ include("structs.jl")
 
 using PyPlot
 
-function plot_density(ρ::AbstractMatrix{T}, p) where T<:AbstractFloat
-    fig = PyPlot.figure(figsize=(9, 8))
-    ax = PyPlot.axes()
-    ax.set_xlabel("x")
-    ax.set_ylabel("y")
-    
+function plot(u::AbstractArray{T, 3},
+        v::AbstractArray{T, 3},
+        ρ::AbstractArray{T, 3},
+        p::Parameters) where T<:AbstractFloat
+    fig, axs = PyPlot.subplots(1, 2, figsize=(13, 5))
+    axs[1].set_xlabel("x")
+    axs[1].set_ylabel("y")
+
     rgx = range(0, 2, length=p.nx)
     rgy = range(0, 2, length=p.ny)
     x = [rgx;]'
@@ -15,20 +17,28 @@ function plot_density(ρ::AbstractMatrix{T}, p) where T<:AbstractFloat
     X = repeat([rgx;]', length(x))
     Y = repeat([rgy;],1, length(y))
     
-    ## Velocity vector field
-    #scale = 100.0
-    quiver(x, y, u[:, :, 1]', v[:, :, 1]', color="r")
-    quiver(x, y, u[:, :, 2]', v[:, :, 2]', color="b")
-    
-    pos = ax.contourf(X, Y, ρ',
-        cmap=matplotlib.cm.viridis, alpha=0.5)
-    fig.colorbar(pos, ax=ax)
+    axs[1].set_ylabel("y")
+    # ρmin=min(min(min(ρ...)...)...)
+    # ρmax=max(max(max(ρ...)...)...)
+    for k = 1 : 2
+        axs[k].set_xlabel("x")
+        axs[k].quiver(x, y, u[:, :, k]', v[:, :, k]')
+        # pos = axs[k].contourf(X, Y, ρ[:, :, k]',
+        #         cmap=matplotlib.cm.viridis, alpha=0.5,
+        #         vmin=ρmin, vmax=ρmax)
+        pos = axs[k].contourf(X, Y, ρ[:, :, k]',
+                              cmap=matplotlib.cm.viridis,
+                              alpha=0.5)
+        fig.colorbar(pos, ax=axs[k], label="Density")
+    end
+
     # cp = contour(X, Y, P', cmap=matplotlib.cm.viridis)
 
-    PyPlot.title("2 Phase Filtration: Liquid and Ideal Gas")
+    axs[1].set_title("Gas: Density Gradient")
+    axs[2].set_title("Pentane: Density Gradient")
     
     savefig("../img/2phase-filtration-density.png", dpi=200)
-    # savefig("../img/2phase-filtration.svg")
+    savefig("../img/2phase-filtration-density.svg")
 end
 
 function plot(u::AbstractArray{T, 3},
@@ -36,8 +46,6 @@ function plot(u::AbstractArray{T, 3},
         P::AbstractMatrix{T}, p) where T<:AbstractFloat
     fig = PyPlot.figure(figsize=(9, 8))
     ax = PyPlot.axes()
-    ax.set_xlabel("x")
-    ax.set_ylabel("y")
     
     rgx = range(0, 2, length=p.nx)
     rgy = range(0, 2, length=p.ny)
@@ -51,10 +59,11 @@ function plot(u::AbstractArray{T, 3},
     quiver(x, y, u[:, :, 1]', v[:, :, 1]', color="r")
     quiver(x, y, u[:, :, 2]', v[:, :, 2]', color="b")
     
-    ## Pressure contour map
-    pos = ax.contourf(X, Y, P',
+    pos = ax.contourf(X, Y, ρ',
         cmap=matplotlib.cm.viridis, alpha=0.5)
     fig.colorbar(pos, ax=ax)
+    
+    ## Pressure contour map
     # cp = contour(X, Y, P', cmap=matplotlib.cm.viridis)
 
     PyPlot.title("2 Phase Filtration: Liquid and Ideal Gas")
@@ -64,7 +73,7 @@ function plot(u::AbstractArray{T, 3},
 end
 
 function plot(sys::System, p::Parameters)
-    plot(sys.u, sys.v, sys.P, p)
+    plot(sys.u, sys.v, sys.ρ, p)
 end
 
 function dump(sys::System, p::Parameters)

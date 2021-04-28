@@ -29,7 +29,7 @@ JULIA_DEBUG=Main julia src/main.jl
 - `aux/` - supplementary problems leading up to main project.
 
 ## 2-Component Filtration: Ideal Gas and Pentane
-![Alt text](img/2phase-filtration.svg?raw=true "1")
+![Alt text](img/2phase-filtration-density.png?raw=true "1")
 
 ## 1-Component Cavity Flow: Ideal Gas
 ![Alt text](img/ideal-gas.svg?raw=true "1")
