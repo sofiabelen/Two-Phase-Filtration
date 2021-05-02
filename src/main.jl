@@ -28,18 +28,6 @@ function check_pressure(sys::System)
     end
 end
 
-# function dump(sys::System)
-#     println("Pressure:")
-#     println(sys.P)
-#     println()
-#     println("Density 1:")
-#     println(sys.ρ[:, :, 1])
-#     println("Density 2:")
-#     println(sys.ρ[:, :, 2])
-#     println("u₁")
-#     pri
-# end
-
 function update!(syswork::System, sysnext::System,
         p::Parameters)
     continuity_equation!(syswork, sysnext, p)
@@ -54,12 +42,12 @@ end
 
 function init(p::Parameters)
     P = fill(p.P₀, p.nx, p.ny)
-    s = zeros(p.nx, p.ny)
+    s = zeros(p.nx, p.ny, 2)
     u = zeros(p.nx, p.ny, 2)
     v = zeros(p.nx, p.ny, 2)
     ρ = zeros(p.nx, p.ny, 2)
 
-    sys = System(u, v, ρ, P, s)
+    sys = System(u, v, ρ, s, P)
 
     boundary_pressure!(sys, p)
     initial_saturation!(sys, p)
@@ -86,4 +74,4 @@ function main(p)
     dump(sys, p)
 end
 
-main(p)
+# main(p)

@@ -71,8 +71,9 @@ cache_x₀ = 1e5
 is_cache = 1
 
 function newton_raphson(; f::Function, fder::Function,
-    niter=100, eps_x::T=1e-6)::T where T<:AbstractFloat
+    niter=10000, eps_x::T=1e-6)::T where T<:AbstractFloat
 
+    ## TODO: what if not cached?
     if is_cache == 1
         x₀ = cache_x₀
     end
@@ -95,7 +96,7 @@ function newton_raphson(; f::Function, fder::Function,
         x₀ = x₁
     end
 
-    return error("secant method fails to reach accuracy of ",
+    return error("newton raphson method fails to reach accuracy of ",
                  eps_x, " in ", niter, " iterations")
 end
 # -------------------------------------------------------- #

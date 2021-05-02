@@ -23,6 +23,11 @@ end
 # const fliq(s::AbstractFloat)::AbstractFloat = (1 .- s)^2
 # const fresisting = (fgas, fliq)::Tuple{Function, Vararg{Function}}
 
+function f_phase(s::AbstractFloat)
+    return s^2
+end
+
+
 # ------------------ Continuity Equation ----------------- #
 
 ## Continuity equation to calculate ρᵢ
@@ -93,25 +98,28 @@ function darcy!(sys::System, p::Parameters)
     # fgas(s) = s^2
     # fliq(s) = (1 .- s)^2
     # f = (fgas, fliq)
-    #
-    # for k = 1 : 2
-    #   @views darcy!(f=f[k], u=sys.u[:, :, k],
-    #                 v=sys.v[:, :, k], P=sys.P,
-    #                 s=sys.s, p=p, k=k)
-    # end
+
+    f(s::AbstractFloat)::AbstractFloat = s^2
+
+    for k = 1 : 2
+      @views darcy!(f=f,
+                    u=sys.u[:, :, k],
+                    v=sys.v[:, :, k], P=sys.P,
+                    s=sys.s[:, :, k], p=p, k=k)
+    end
 
     ## This is type stable
     ## (but I'm still getting runtime dispatch in profiler)
-    fgas(s) = s^2
-    fliq(s) = (1 .- s)^2
+    # fgas(s) = s^2
+    # fliq(s) = (1 .- s)^2
 
-    @views darcy!(f=fgas, u=sys.u[:, :, 1],
-                  v=sys.v[:, :, 1], P=sys.P,
-                  s=sys.s, p=p, k=1)
+    # @views darcy!(f=fgas, u=sys.u[:, :, 1],
+    #               v=sys.v[:, :, 1], P=sys.P,
+    #               s=sys.s, p=p, k=1)
 
-    @views darcy!(f=fliq, u=sys.u[:, :, 2],
-                  v=sys.v[:, :, 2], P=sys.P,
-                  s=sys.s, p=p, k=2)
+    # @views darcy!(f=fliq, u=sys.u[:, :, 2],
+    #               v=sys.v[:, :, 2], P=sys.P,
+    #               s=sys.s, p=p, k=2)
 end
 # -------------------------------------------------------- #
 
@@ -120,25 +128,25 @@ end
 # ---------------------- BC & IC ------------------------- #
 
 function boundary_density!(ρ::AbstractArray{T, 3},
-        P::AbstractMatrix{T}, s::AbstractMatrix{T},
+        P::AbstractMatrix{T}, s::AbstractArray{T, 3},
         p::Parameters) where T<:AbstractFloat
     @. @views ρ[:, 1, 1]  = density(ideal_gas, P[:, 1]) *
-                                               s[:, 1]
+                                                 s[:, 1, 1]
     @. @views ρ[:, p.ny, 1] = density(ideal_gas, P[:, p.ny])*
-                                                 s[:, p.ny]
+                                                 s[:, p.ny, 1]
     @. @views ρ[1, :, 1]  = density(ideal_gas, P[1, :]) *
-                                               s[1, :]
+                                                 s[1, :, 1]
     @. @views ρ[p.nx, :, 1] = density(ideal_gas, P[p.nx, :])*
-                                                 s[p.nx, :]  
+                                                 s[p.nx, :, 1]  
 
     @. @views ρ[:, 1, 2]  = density(tait_C₅H₁₂, P[:, 1]) *
-                                           (1 - s[:, 1])
+                                                 s[p.nx, :, 2]
     @. @views ρ[:, p.ny, 2] = density(tait_C₅H₁₂, P[:,p.ny])*
-                                             (1 - s[:,p.ny])
+                                                 s[p.nx, :, 2]
     @. @views ρ[1, :, 2]  = density(tait_C₅H₁₂, P[1, :]) *
-                                           (1 - s[1, :])
+                                                 s[p.nx, :, 2]
     @. @views ρ[p.nx, :, 2] = density(tait_C₅H₁₂, P[p.nx,:])*
-                                             (1 - s[p.nx,:])
+                                                 s[p.nx, :, 2]
 end
 
 function boundary_density!(sys::System, p::Parameters)
@@ -154,15 +162,18 @@ end
 function boundary_saturation!(
         ρ̂₁::AbstractMatrix{T},
         ρ̂₂::AbstractMatrix{T},
-        s::AbstractMatrix{T},
+        s::AbstractArray{T, 3},
         p::Parameters) where T<:AbstractFloat
 
     ## This is type unstable.
-    @. @views s[1: p.nx ÷ 2, 1] = (ρ̂₁[1: p.nx ÷ 2, 1] /
+    @. @views s[1: p.nx ÷ 2, 1, 1] = (ρ̂₁[1: p.nx ÷ 2, 1] /
                                    ρ̂₂[1: p.nx ÷ 2, 1] *
                          p.M[2] * (1 - p.ψ) / p.M[1] /
                          p.ψ + 1)^(-1)
-    @. @views s[:, ny] = s[:, ny - 1]
+    @. @views s[:, ny, 1] = s[:, ny - 1, 1]
+
+    @. @views s[1: p.nx ÷ 2, 1, 2] = 1 - s[1: p.nx ÷ 2, 1, 1]
+    @. @views s[:, ny, 1] = 1 - s[:, ny, 1]
 end
 
 function boundary_saturation!(sys::System, p::Parameters)
@@ -174,11 +185,13 @@ end
 function initial_saturation!(
         ρ̂₁::AbstractMatrix{T},
         ρ̂₂::AbstractMatrix{T},
-        s::AbstractMatrix{T}, p) where T<:AbstractFloat
+        s::AbstractArray{T, 3}, p) where T<:AbstractFloat
 
-    @. @views s[:, :] = (ρ̂₁[:, :] /
+    @. @views s[:, :, 1] = (ρ̂₁[:, :] /
                          ρ̂₂[:, :] * p.M[2] * (1 - p.ψ₀) /
                          p.M[1] / p.ψ₀ + 1)^(-1)
+
+    @. @views s[:, :, 2] = 1 - s[:, :, 1]
 end
 
 function initial_saturation!(sys::System, p::Parameters)
@@ -234,22 +247,25 @@ function boundary_velocity!(sys::System, p::Parameters)
     ## Type unstable because of 'f=f[k]'
     ## This answer doesn't work because of views
     ## https://discourse.julialang.org/t/how-to-make-type-stable-passing-an-element-of-a-vector-of-functions/60068
-    # for k = 1 : 2
-    #     @views boundary_velocity!(f=fresisting[k],
-    #         s=sys.s, u=sys.u[:, :, k], v=sys.v[:, :, k],
-    #         P=sys.P, p=p, k=k)
-    # end
 
-    fgas(s) = s^2
-    fliq(s) = (1 .- s)^2
+    f(s::AbstractFloat)::AbstractFloat = s^2
+
+    for k = 1 : 2
+        @views boundary_velocity!(f=f, s=sys.s[:, :, k],
+            u=sys.u[:, :, k], v=sys.v[:, :, k],
+            P=sys.P, p=p, k=k)
+    end
+
+    # fgas(s) = s^2
+    # fliq(s) = (1 .- s)^2
 
     ## This is type stable
-    @views boundary_velocity!(f=fgas,
-        s=sys.s, u=sys.u[:, :, 1], v=sys.v[:, :, 1],
-        P=sys.P, p=p, k=1)
+    # @views boundary_velocity!(f=fgas,
+    #     s=sys.s, u=sys.u[:, :, 1], v=sys.v[:, :, 1],
+    #     P=sys.P, p=p, k=1)
 
-    @views boundary_velocity!(f=fliq,
-        s=sys.s, u=sys.u[:, :, 2], v=sys.v[:, :, 2],
-        P=sys.P, p=p, k=2)
+    # @views boundary_velocity!(f=fliq,
+    #     s=sys.s, u=sys.u[:, :, 2], v=sys.v[:, :, 2],
+    #     P=sys.P, p=p, k=2)
 end
 # -------------------------------------------------------- #

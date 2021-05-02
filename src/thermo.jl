@@ -31,9 +31,9 @@ end
 
 function density!(sys::System)
     @. @views sys.ρ[:, :, 1] = density(ideal_gas, sys.P) *
-                                        sys.s
+                                        sys.s[:, :, 1]
     @. @views sys.ρ[:, :, 2] = density(tait_C₅H₁₂, sys.P) *
-                                      (1 - sys.s)
+                                        sys.s[:, :, 2]
 end
 # -------------------------------------------------------- #
 
@@ -85,13 +85,15 @@ function find_pressure!(sys::System, p::Parameters)
         #
 
         ## Type unstable
-        sys.P[i, j], sys.s[i, j] =
+        sys.P[i, j], sys.s[i, j, 1] =
                    find_pressure(p=p,
                    root_finder=newton_raphson,
                    ρ₁=sys.ρ[i, j, 1],
                    ρ₂=sys.ρ[i, j, 2],
                    tait=tait_C₅H₁₂,
                    igas=ideal_gas)
+
+        sys.s[i, j, 2] = 1 - sys.s[i, j, 1]
     end
 end
 # -------------------------------------------------------- #

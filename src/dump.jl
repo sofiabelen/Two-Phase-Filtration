@@ -29,6 +29,8 @@ function plot(u::AbstractArray{T, 3},
         pos = axs[k].contourf(X, Y, ρ[:, :, k]',
                               cmap=matplotlib.cm.viridis,
                               alpha=0.5)
+        axs[k].contour(X, Y, ρ[:, :, k]',
+                              cmap=matplotlib.cm.viridis)
         fig.colorbar(pos, ax=axs[k], label="Density")
     end
 
@@ -92,8 +94,8 @@ function dump(sys::System, p::Parameters)
     writedlm("density1.txt", sys.ρ[2, :, 1], ' ')
     writedlm("density2.txt", sys.ρ[2, :, 2], ' ')
     writedlm("flow1.txt", sys.ρ[2, :, 1] .*
-             sys.s[2, :] .* sys.v[2, :, 1], ' ')
+             sys.s[2, :, 1] .* sys.v[2, :, 1], ' ')
     writedlm("flow2.txt", sys.ρ[2, :, 2] .*
-             (1 .- sys.s[2, :]) .* sys.v[2, :, 2], ' ')
-    writedlm("saturation.txt", sys.s[2, :], ' ')
+             sys.s[2, :, 2] .* sys.v[2, :, 2], ' ')
+    writedlm("saturation.txt", sys.s[2, :, 1], ' ')
 end
