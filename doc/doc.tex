@@ -179,12 +179,10 @@ We derive the densities from the equations of state.
 
 \section{Discretization Scheme}
 
-We use the finite difference method (FDM).
-
 \subsection{Continuity Equation}
 
 \[
-\frac{\partial \rho}{\partial t}
+\varphi \frac{\partial \rho}{\partial t}
 + \frac{\partial \rho}{\partial x} u
 + \frac{\partial \rho}{\partial y} v
 + \frac{\partial u}{\partial x} \rho
@@ -198,7 +196,6 @@ We use the finite difference method (FDM).
 + \frac{u_{i+1, j} - u_{i-1,j}^n}{2\Delta x} \rho_{i,j}^n
 + \frac{v_{i, j+1}^n - v_{i,j-1}^n}{2\Delta y} \rho_{ij}^n = 0
 \] 
-
 \subsection{Darcy's Law}
 
 \[
@@ -225,6 +222,90 @@ We use the finite difference method (FDM).
     - P_{i, ny - 2}^n }{(-2 \Delta x)}
     \qquad \text{(Outlet)}
 \] 
+
+\subsection{Predictor-Corrector}
+
+\begin{enumerate}
+    \item Predictor
+        \begin{enumerate}
+            \item Continuity Equation
+\begin{align*}
+    \tilde \rho_{i, j}^{n+1} = \rho_{i, j}^n
+    - \frac{\Delta t}{\varphi} &\left( 
+  \frac{\rho_{i+1, j}^n - \rho_{i-1,j}^n}{2\Delta x} u_{i,j}
++ \frac{\rho_{i, j+1}^n - \rho_{i,j-1}^n}{2\Delta y} v_{i,j}
+\right. \\
+                             &\left.+
+  \frac{u_{i+1, j} - u_{i-1,j}^n}{2\Delta x} \rho_{i,j}^n
++ \frac{v_{i, j+1}^n - v_{i,j-1}^n}{2\Delta y} \rho_{ij}^n
+    \right) \\
+    \tilde \rho_{i, j}^{n + 1}
+    = \rho_{i, j}^n + F_\rho^n \Delta t 
+\end{align*}
+
+            \item Compute Pressure \(\tilde P^n\)
+            \item Enforce boundary conditions for pressure,
+                density, and saturation.
+
+            \item Darcy's Law (???)
+\[
+    \tilde u_{i,j}^n = -\frac{K}{\mu}
+    f_\alpha (\tilde s_{i, j}^n)
+    \frac{\tilde P_{i + 1, j}^n - \tilde P_{i - 1, j}^n}
+    {2\Delta x} \\
+\] 
+
+\[
+    \tilde v_{i,j}^n = -\frac{K}{\mu}
+    f_\alpha(\tilde s_{i, j}^n)
+    \frac{\tilde P_{i, j + 1}^n
+    - \tilde P_{i, j - 1}^n}{2\Delta y}
+\] 
+            \item Enforce boundary conditions for velocity.
+        \end{enumerate}
+
+    \item Corrector
+        \begin{enumerate}
+            \item Continuity Equation
+
+\begin{align*}
+    \tilde F^{n + 1} = -\frac{1}{\varphi} &\left( 
+\frac{\tilde \rho_{i+1, j}^{n + 1}
+    - \tilde \rho_{i-1,j}^{n + 1} }{2\Delta x} \tilde u_{i,j}
++ \frac{\tilde \rho_{i, j+1}^{n + 1}
+    - \tilde \rho_{i,j-1}^{n + 1} }{2\Delta y} \tilde v_{i,j}
+\right.\\
+                                          &\left.
++ \frac{\tilde u_{i+1, j}
+    - \tilde u_{i-1,j}^{n + 1}}{2
+\Delta x} \tilde \rho_{i,j}^{n + 1}
++ \frac{\tilde v_{i, j+1}^{n + 1}
+- \tilde v_{i,j-1}^{n + 1}}{2\Delta y}
+\tilde \rho_{ij}^{n + 1}
+    \right) 
+\end{align*}
+
+\begin{align*}
+    \rho_{i, j}^{n + 1} = \rho_{i, j}^n + \frac{F_\rho^n
+    + \tilde F_\rho^{n+1} }{2} \Delta t
+\end{align*}
+
+            \item Compute Pressure \(P^n\)
+            \item Enforce boundary conditions for pressure,
+                density, and saturation.
+            \item Darcy's Law
+\[
+    u_{i,j}^n = -\frac{K}{\mu} f_\alpha (s_{i, j}^n)
+    \frac{P_{i + 1, j}^n - P_{i - 1, j}^n}{2\Delta x} \\
+\] 
+
+\[
+    v_{i,j}^n = -\frac{K}{\mu} f_\alpha(s_{i, j}^n)
+    \frac{P_{i, j + 1}^n - P_{i, j - 1}^n}{2\Delta y}
+\] 
+        \end{enumerate}
+\end{enumerate}
+
 
 \section{Finding Pressure using Binary Search}
 
@@ -320,6 +401,19 @@ Second order scheme in space, with the use of ghost cells.
     \end{tabular}
 \end{table}
 
+\section{Conventions}
+
+\begin{enumerate}
+
+    \item Density:
+
+        \[
+            \rho_i = \frac{m_i}{V}, \qquad
+            \hat{\rho_i} = \frac{m_i}{s_i V}
+        .\] 
+
+\end{enumerate}
+
 \section{TODO}
 
 \begin{enumerate}
@@ -382,19 +476,6 @@ Second order scheme in space, with the use of ghost cells.
     \item Profile and optimize code.
 
     \item Upgrade to predictor-corrector.
-
-\end{enumerate}
-
-\section{Conventions}
-
-\begin{enumerate}
-
-    \item Density:
-
-        \[
-            \rho_i = \frac{m_i}{V}, \qquad
-            \hat{\rho_i} = \frac{m_i}{s_i V}
-        .\] 
 
 \end{enumerate}
 
