@@ -32,12 +32,26 @@ end
 
 ## Continuity equation to calculate ρᵢ
 ## φ ⋅∂ρᵢ / ∂t + div(ρᵢv⃗ᵢ) = 0, where ρᵢ = mᵢ / V
-## We will add a right side to this where we inject matter.
+## (We can add a right side to this if we inject matter.)
 function continuity_equation!(;
         ρnext::AbstractMatrix{T},
         ρwork::AbstractMatrix{T},
+        F::AbstractMatrix{T},
+        p::Parameters) where T<:AbstractFloat
+    for j = 2 : p.ny - 1
+        for i = 2 : p.nx - 1
+            ρc, ρn, ρs, ρw, ρe = cnswe(ρwork, i, j)
+            ρnext[i, j] = ρc + p.Δt  * F[i, j]
+        end
+    end
+    @debug ρnext ρwork
+end
+
+function continuity_equation_fill_F!(;
+        ρwork::AbstractMatrix{T},
         uwork::AbstractMatrix{T},
         vwork::AbstractMatrix{T},
+        F::AbstractMatrix{T},
         p::Parameters) where T<:AbstractFloat
     for j = 2 : p.ny - 1
         for i = 2 : p.nx - 1
@@ -45,7 +59,7 @@ function continuity_equation!(;
             uc, un, us, uw, ue = cnswe(uwork, i, j)
             vc, vn, vs, vw, ve = cnswe(vwork, i, j)
     
-            ρnext[i, j] = ρc - p.Δt / p.φ *
+            F[i, j] = - 1 / p.φ *
                 (uc * (ρe - ρw) / (2 * p.Δx) +
                  vc * (ρn - ρs) / (2 * p.Δy) +
                  ρc * (ue - uw) / (2 * p.Δx) +
@@ -55,14 +69,38 @@ function continuity_equation!(;
     @debug ρnext ρwork
 end
 
+## Predictor
 function continuity_equation!(syswork::System, 
         sysnext::System, p::Parameters)
     for k = 1 : 2
         @debug "Component $k continuity eqn"
-        @views continuity_equation!(ρnext=sysnext.ρ[:, :, k], 
+        @views continuity_equation_fill_F!(
                                     ρwork=syswork.ρ[:, :, k],
                                     uwork=syswork.u[:, :, k],
                                     vwork=syswork.v[:, :, k],
+                                    F=syswork.F[:, :, k], p=p)
+        @views continuity_equation!(ρnext=sysnext.ρ[:, :, k], 
+                                    ρwork=syswork.ρ[:, :, k],
+                                    F=syswork.F[:, :, k], p=p)
+    end
+    @debug "Saturation " sysnext.s
+end
+
+## Corrector
+function continuity_equation!(syswork::System,
+        sysnext_pred::System, sysnext::System,
+        p::Parameters)
+    for k = 1 : 2
+        @debug "Component $k continuity eqn"
+        @views continuity_equation_fill_F!(
+                                    ρwork=sysnext_pred.ρ[:, :, k],
+                                    uwork=sysnext_pred.u[:, :, k],
+                                    vwork=sysnext_pred.v[:, :, k],
+                                    F=sysnext_pred.F[:, :, k], p=p)
+        @views continuity_equation!(ρnext=sysnext.ρ[:, :, k], 
+                                    ρwork=syswork.ρ[:, :, k],
+                                    F=(syswork.F[:, :, k] .+
+                                       sysnext_pred.F[:, :, k]) ./2,
                                     p=p)
     end
     @debug "Saturation " sysnext.s

@@ -30,7 +30,21 @@ end
 
 function update!(syswork::System, sysnext::System,
         p::Parameters)
-    continuity_equation!(syswork, sysnext, p)
+# -------------------- Predictor ------------------------- #
+## ρ̃ᵢⱼnext = ρᵢⱼwork + F⋅Δt      
+    sysnext_pred = copy(sysnext)
+
+    continuity_equation!(syswork, sysnext_pred, p)
+    find_pressure!(sysnext_pred, p)
+    boundary_pressure!(sysnext_pred, p)
+    # check_pressure(sysnext_pred)
+    boundary_density!(sysnext_pred, p) 
+    boundary_saturation!(sysnext_pred, p)
+    darcy!(sysnext_pred, p)
+    boundary_velocity!(sysnext_pred, p)
+# -------------------- Corrector ------------------------- #
+## ρᵢⱼnext = ρᵢⱼwork + (F + F̃) / 2 ⋅Δt      
+    continuity_equation!(syswork, sysnext_pred, sysnext, p)
     find_pressure!(sysnext, p)
     boundary_pressure!(sysnext, p)
     # check_pressure(sysnext)
@@ -46,8 +60,9 @@ function init(p::Parameters)
     u = zeros(p.nx, p.ny, 2)
     v = zeros(p.nx, p.ny, 2)
     ρ = zeros(p.nx, p.ny, 2)
+    F = zeros(p.nx, p.ny, 2)
 
-    sys = System(u, v, ρ, s, P)
+    sys = System(u, v, ρ, F, s, P)
 
     boundary_pressure!(sys, p)
     initial_saturation!(sys, p)
@@ -62,6 +77,7 @@ function filtration(p::Parameters)
     sysnext = copy(syswork)
 
     for t = 1 : p.nsteps
+        println("Step i = ", t)
         update!(syswork, sysnext, p)
         sysnext, syswork = syswork, sysnext
     end
@@ -74,4 +90,4 @@ function main(p)
     dump(sys, p)
 end
 
-# main(p)
+main(p)

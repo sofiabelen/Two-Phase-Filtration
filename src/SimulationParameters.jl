@@ -5,13 +5,12 @@ include("physics.jl")
 export Δt, nsteps, L, nx, ny, Δx, Δy, φ, K, μ, Pin, Pout,
        P₀, M, ψ, ψ₀
 
-Δt = 0.001
-nsteps = 100000
-# nsteps = 2
+Δt = 0.0001
+nsteps = 10000
 
 ## Space grid [0, 2] × [0, 2]
 L = 2
-nx = ny = 50
+nx = ny = 250
 Δx = Δy = L / nx
 
 ## Porosity
@@ -32,7 +31,7 @@ P₀ = Pout
 M = [MOLAR_MASS_IGAS, MOLAR_MASS_PENTANE]
 
 ## Molar Composition on the Inlet
-ψ = 0.2
+ψ = 0.9
 
 ## Initial Molar Composition
 ψ₀ = ψ

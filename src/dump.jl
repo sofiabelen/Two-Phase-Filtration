@@ -36,7 +36,7 @@ function plot(u::AbstractArray{T, 3},
 
     # cp = contour(X, Y, P', cmap=matplotlib.cm.viridis)
 
-    axs[1].set_title("Gas: Density Gradient")
+    axs[1].set_title("Nitrogen: Density Gradient")
     axs[2].set_title("Pentane: Density Gradient")
     
     savefig("../img/2phase-filtration-density.png", dpi=200)
@@ -61,14 +61,14 @@ function plot(u::AbstractArray{T, 3},
     quiver(x, y, u[:, :, 1]', v[:, :, 1]', color="r")
     quiver(x, y, u[:, :, 2]', v[:, :, 2]', color="b")
     
-    pos = ax.contourf(X, Y, ρ',
+    pos = ax.contourf(X, Y, P',
         cmap=matplotlib.cm.viridis, alpha=0.5)
-    fig.colorbar(pos, ax=ax)
+    fig.colorbar(pos, ax=ax, label="Pressure")
     
     ## Pressure contour map
     # cp = contour(X, Y, P', cmap=matplotlib.cm.viridis)
 
-    PyPlot.title("2 Phase Filtration: Liquid and Ideal Gas")
+    PyPlot.title("2 Phase Filtration: Nitrogen and Pentane")
     
     savefig("../img/2phase-filtration.png", dpi=200)
     savefig("../img/2phase-filtration.svg")
@@ -76,6 +76,7 @@ end
 
 function plot(sys::System, p::Parameters)
     plot(sys.u, sys.v, sys.ρ, p)
+    plot(sys.u, sys.v, sys.P, p)
 end
 
 function dump(sys::System, p::Parameters)
@@ -86,16 +87,16 @@ function dump(sys::System, p::Parameters)
     pressure2 = @. (x.B + x.P₀) * 10^((ρ̂₂ - x.ρ₀) / x.C / 
                                       ρ̂₂) - x.B
 
-    writedlm("pressure.txt", sys.P[2, :], ' ')
-    writedlm("pressure1.txt", pressure1 .- sys.P, ' ')
-    writedlm("pressure2.txt", pressure2 .- sys.P, ' ')
-    writedlm("v1.txt", sys.v[2, :, 1], ' ')
-    writedlm("v2.txt", sys.v[2, :, 2], ' ')
-    writedlm("density1.txt", sys.ρ[2, :, 1], ' ')
-    writedlm("density2.txt", sys.ρ[2, :, 2], ' ')
-    writedlm("flow1.txt", sys.ρ[2, :, 1] .*
+    writedlm("../dump/pressure.txt", sys.P[2, :], ' ')
+    writedlm("../dump/pressure1.txt", pressure1 .- sys.P, ' ')
+    writedlm("../dump/pressure2.txt", pressure2 .- sys.P, ' ')
+    writedlm("../dump/v1.txt", sys.v[2, :, 1], ' ')
+    writedlm("../dump/v2.txt", sys.v[2, :, 2], ' ')
+    writedlm("../dump/density1.txt", sys.ρ[2, :, 1], ' ')
+    writedlm("../dump/density2.txt", sys.ρ[2, :, 2], ' ')
+    writedlm("../dump/flow1.txt", sys.ρ[2, :, 1] .*
              sys.s[2, :, 1] .* sys.v[2, :, 1], ' ')
-    writedlm("flow2.txt", sys.ρ[2, :, 2] .*
+    writedlm("../dump/flow2.txt", sys.ρ[2, :, 2] .*
              sys.s[2, :, 2] .* sys.v[2, :, 2], ' ')
-    writedlm("saturation.txt", sys.s[2, :, 1], ' ')
+    writedlm("../dump/saturation.txt", sys.s[2, :, 1], ' ')
 end
