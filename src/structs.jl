@@ -1,4 +1,4 @@
-## index [i, j, k], where k=1,2 is the component: 
+## index [i, j, k], where k = 1, 2 is the component: 
 ## 1 - gas,
 ## 2 - liquid;
 ## [i, j] -> x, y
@@ -7,12 +7,13 @@ mutable struct System{T<:AbstractFloat}
     u::Array{T, 3}
     v::Array{T, 3}
     ρ::Array{T, 3}
+    F::Array{T, 3}
     s::Array{T, 3}
     P::Array{T, 2}
 end
 
 Base.copy(sys::System) = System(copy.((sys.u, sys.v, sys.ρ,
-                                       sys.s, sys.P))... )
+                                       sys.F, sys.s, sys.P))... )
 
 struct Parameters{T<:AbstractFloat}
     nsteps::Integer
