@@ -73,14 +73,18 @@ is_cache = 1
 function newton_raphson(; f::Function, fder::Function,
     niter=10000, eps_x::T=1e-6)::T where T<:AbstractFloat
 
+    x₀::AbstractFloat = 0
+    x₁::AbstractFloat = 0
     ## TODO: what if not cached?
     if is_cache == 1
         x₀ = cache_x₀
     end
 
+    xs = fill(0.0, niter)
     for i = 1 : niter
         @debug x₀ f(x₀)
-        x₁::AbstractFloat = x₀ - f(x₀) / fder(x₀)
+        # println(x₀, " ", f(x₀))
+        x₁ = x₀ - f(x₀) / fder(x₀)
 
         ## To avoid domain error: negative values in log
         if x₁ < eps_x
@@ -93,10 +97,17 @@ function newton_raphson(; f::Function, fder::Function,
             return x₁
         end
 
+        xs[i] = x₀
         x₀ = x₁
     end
 
+    rgx = range(1e4, 1e7, length=10000)
+    output = hcat(rgx, f.(rgx))
+    writedlm("../dump/f.txt", output, ' ')
+    writedlm("../dump/xs.txt", xs, ' ')
+
     return error("newton raphson method fails to reach accuracy of ",
-                 eps_x, " in ", niter, " iterations")
+                 eps_x, " in ", niter, " iterations Delta P = ",
+                 abs(f(x₀)), "x₀ = ", x₀)
 end
 # -------------------------------------------------------- #

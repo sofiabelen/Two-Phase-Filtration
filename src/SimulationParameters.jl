@@ -5,12 +5,15 @@ include("physics.jl")
 export Δt, nsteps, L, nx, ny, Δx, Δy, φ, K, μ, Pin, Pout,
        P₀, M, ψ, ψ₀
 
+# Δt = 0.0000001
+# Δt = 0.001
 Δt = 0.0001
-nsteps = 10000
+# nsteps = 10000
+nsteps = 100000
 
 ## Space grid [0, 2] × [0, 2]
 L = 2
-nx = ny = 250
+nx = ny = 150
 Δx = Δy = L / nx
 
 ## Porosity

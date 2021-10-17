@@ -86,6 +86,7 @@ end
 
 function main(p)
     sys = filtration(p)
+
     plot(sys, p)
     dump(sys, p)
 end
