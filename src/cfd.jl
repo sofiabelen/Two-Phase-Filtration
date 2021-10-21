@@ -191,23 +191,30 @@ function boundary_density!(sys::System, p::Parameters)
     boundary_density!(sys.ρ, sys.P, sys.s, p)
 end
 
-## Inlet
-## We derive the saturation from the molar composition
-## ψ = ν₁ / ν₂ and the densities ρ̂₁ and ρ̂₂.
-
-## Outlet
-## ∂s / ∂n⃗ = 0
 function boundary_saturation!(
         ρ̂₁::AbstractMatrix{T},
         ρ̂₂::AbstractMatrix{T},
         s::AbstractArray{T, 3},
         p::Parameters) where T<:AbstractFloat
+## Inlet
+## We derive the saturation from the molar composition
+## ψ = ν₁ / ν₂ and the densities ρ̂₁ and ρ̂₂.
+## s_boundary = (s_1 + s_2) / 2
+    ρ̂₁_bound::Array{AbstractFloat} = ρ̂₁[1: p.nx ÷ 2, 1]
+    ρ̂₂_bound::Array{AbstractFloat} = ρ̂₁[1: p.nx ÷ 2, 1]
+    s_bound::Array{AbstractFloat}  = ρ̂₁[1: p.nx ÷ 2, 1]
 
-    ## This is type unstable.
-    @. @views s[1: p.nx ÷ 2, 1, 1] = (ρ̂₁[1: p.nx ÷ 2, 1] /
-                                   ρ̂₂[1: p.nx ÷ 2, 1] *
-                         p.M[2] * (1 - p.ψ) / p.M[1] /
-                         p.ψ + 1)^(-1)
+    @. @views ρ̂₁_bound = (ρ̂₁[1: p.nx ÷ 2, 1]
+                + ρ̂₁[1: p.nx ÷ 2, 2]) / 2
+    @. @views ρ̂₂_bound = (ρ̂₂[1: p.nx ÷ 2, 1]
+                + ρ̂₂[1: p.nx ÷ 2, 2]) / 2
+    @. @views s_bound  = (ρ̂₁_bound / ρ̂₂_bound *
+               p.M[2] * (1 - p.ψ) / p.M[1] / p.ψ + 1)^(-1)
+    @. @views s[1: p.nx ÷ 2, 1, 1] = 2 * s_bound -
+               s[1: p.nx ÷ 2, 1, 1]
+
+## Outlet
+## ∂s / ∂n⃗ = 0
     @. @views s[:, ny, 1] = s[:, ny - 1, 1]
 
     @. @views s[1: p.nx ÷ 2, 1, 2] = 1 - s[1: p.nx ÷ 2, 1, 1]

@@ -37,7 +37,6 @@ function update!(syswork::System, sysnext::System,
     continuity_equation!(syswork, sysnext_pred, p)
     find_pressure!(sysnext_pred, p)
     boundary_pressure!(sysnext_pred, p)
-    # check_pressure(sysnext_pred)
     boundary_density!(sysnext_pred, p) 
     boundary_saturation!(sysnext_pred, p)
     darcy!(sysnext_pred, p)
@@ -47,7 +46,6 @@ function update!(syswork::System, sysnext::System,
     continuity_equation!(syswork, sysnext_pred, sysnext, p)
     find_pressure!(sysnext, p)
     boundary_pressure!(sysnext, p)
-    # check_pressure(sysnext)
     boundary_density!(sysnext, p) 
     boundary_saturation!(sysnext, p)
     darcy!(sysnext, p)
@@ -86,7 +84,6 @@ end
 
 function main(p)
     sys = filtration(p)
-
     plot(sys, p)
     dump(sys, p)
 end

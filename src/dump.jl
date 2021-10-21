@@ -6,7 +6,7 @@ function plot_density(u::AbstractArray{T, 3},
         v::AbstractArray{T, 3},
         ρ::AbstractArray{T, 3},
         p::Parameters) where T<:AbstractFloat
-    fig, axs = PyPlot.subplots(1, 2, figsize=(13, 5))
+    fig, axs = PyPlot.subplots(1, 2, figsize=(10, 4))
     axs[1].set_xlabel("x, m")
     axs[1].set_ylabel("y, m")
 
@@ -98,23 +98,23 @@ function plot(sys::System, p::Parameters)
 end
 
 function dump(sys::System, p::Parameters)
-    x = ideal_gas
-    pressure1 = @. R * x.T * sys.ρ[:, :, 1] / p.M[1] / sys.s
-    x = tait_C₅H₁₂
-    ρ̂₂ = @. sys.ρ[:, :, 2] / (1 - sys.s)
-    pressure2 = @. (x.B + x.P₀) * 10^((ρ̂₂ - x.ρ₀) / x.C / 
-                                      ρ̂₂) - x.B
+    # x = ideal_gas
+    # pressure1 = @. R * x.T * sys.ρ[:, :, 1] / p.M[1] / sys.s
+    # x = tait_C₅H₁₂
+    # ρ̂₂ = @. sys.ρ[:, :, 2] / (1 - sys.s)
+    # pressure2 = @. (x.B + x.P₀) * 10^((ρ̂₂ - x.ρ₀) / x.C / 
+    #                                   ρ̂₂) - x.B
 
-    writedlm("../dump/pressure.txt", sys.P[:, 1], ' ')
-    writedlm("../dump/pressure1.txt", pressure1 .- sys.P, ' ')
-    writedlm("../dump/pressure2.txt", pressure2 .- sys.P, ' ')
-    writedlm("../dump/v1.txt", sys.v[2, :, 1], ' ')
-    writedlm("../dump/v2.txt", sys.v[2, :, 2], ' ')
-    writedlm("../dump/density1.txt", sys.ρ[2, :, 1], ' ')
-    writedlm("../dump/density2.txt", sys.ρ[2, :, 2], ' ')
-    writedlm("../dump/flow1.txt", sys.ρ[:, ny, 1] .*
-             sys.s[:, ny, 1] .* sys.v[:, ny, 1], ' ')
-    writedlm("../dump/flow2.txt", sys.ρ[:, ny, 2] .*
-             sys.s[:, ny, 2] .* sys.v[:, ny, 2], ' ')
-    writedlm("../dump/saturation.txt", sys.s[2, :, 1], ' ')
+    writedlm("../dump/pressure.txt", sys.P[:, :], ' ')
+    # writedlm("../dump/pressure1.txt", pressure1 .- sys.P, ' ')
+    # writedlm("../dump/pressure2.txt", pressure2 .- sys.P, ' ')
+    writedlm("../dump/v1.txt", sys.v[:, :, 1], ' ')
+    writedlm("../dump/v2.txt", sys.v[:, :, 2], ' ')
+    writedlm("../dump/density1.txt", sys.ρ[:, :, 1], ' ')
+    writedlm("../dump/density2.txt", sys.ρ[:, :, 2], ' ')
+    writedlm("../dump/flow1.txt", sys.ρ[:, :, 1] .*
+             sys.s[:, :, 1] .* sys.v[:, :, 1], ' ')
+    writedlm("../dump/flow2.txt", sys.ρ[:, :, 2] .*
+             sys.s[:, :, 2] .* sys.v[:, :, 2], ' ')
+    writedlm("../dump/saturation.txt", sys.s[:, :, 1], ' ')
 end

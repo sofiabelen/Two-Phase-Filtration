@@ -165,17 +165,42 @@ We derive the densities from the equations of state.
     + 1 \right)^{-1}
     \] 
 
-    \textbf{On outlet:}
-
-    \[
-    \frac{\partial \alpha}{\partial \bm{n}} = 0
-    \] 
-
-    Or,
+    \subsubsection{Outlet}
 
     \[
     \frac{\partial s}{\partial \bm{n}} = 0 
     \] 
+
+    \subsubsection{Inlet}
+
+    \begin{figure}[H]
+        \centering
+        \includegraphics[width=0.6\textwidth]{img/inlet.pdf}
+        \caption{Boundary Conditions on the inlet.}
+    \end{figure}
+
+    \[
+        \hat{\rho}_{\partial \Omega} = \frac{
+          \hat{\rho}_{\alpha, [i, 0]}
+      + \hat{\rho}_{\alpha, [i, 1]}}{2}
+    \] 
+
+    \[
+        s_{\partial \Omega} = \frac{s_{[i, 0]} + s_{[i, 1]}}{2}
+    \] 
+
+    \[
+        s_{[i, 0]} = 2 s_{\partial \Omega} - s_{[i, 1]}
+    \] 
+
+%     \textbf{On outlet:}
+% 
+%     \[
+%     \frac{\partial \alpha}{\partial \bm{n}} = 0
+%     \] 
+% 
+%     Or,
+% 
 
 \section{Discretization Scheme}
 
@@ -475,7 +500,7 @@ Second order scheme in space, with the use of ghost cells.
     
     \item Profile and optimize code.
 
-    \item Upgrade to predictor-corrector.
+    \item \sout{Upgrade to predictor-corrector.}
 
 \end{enumerate}
 
