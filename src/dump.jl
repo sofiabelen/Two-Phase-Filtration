@@ -2,6 +2,21 @@ include("structs.jl")
 
 using PyPlot
 
+function get_boundary(a::Array{T, 2},
+        i::Integer) where T<:AbstractFloat
+    a_bound::Array{AbstractFloat} = zeros(size(a))
+    @. @views a_bound = (a[:, i] + a[:, i + 1]) / 2
+    return a_bound
+end
+
+function get_flux(ρ::Array{T, 2}, s::Array{T, 2}, v::Array{T, 2},
+        i::Integer) where T<:AbstractFloat
+    ρ_bound = get_boundary(ρ[:, :], i)
+    s_bound = get_boundary(s[:, :], i)
+    v_bound = get_boundary(v[:, :], i)
+    return ρ_bound .* s_bound .* v_bound
+end
+
 function plot_density(u::AbstractArray{T, 3},
         v::AbstractArray{T, 3},
         ρ::AbstractArray{T, 3},
@@ -80,21 +95,54 @@ function plot_fluxes(u::AbstractArray{T, 3},
     for k = 1 : 2
         axs[k].set_xlabel("x, (m)")
         axs[k].set_ylabel(L"$\left( \rho \cdot v_y \right), \left( \frac{kg \cdot m}{s}\right)$")
-        axs[k].plot(rgx, v[:, y_index, k] .* ρ[:, y_index, k] .* s[:, y_index, k])
+        flux = get_flux(ρ[:, :, k], s[:, :, k], v[:, :, k], y_index)
+        # not needed anymore:
+        # axs[k].plot(rgx, v[:, y_index, k] .* ρ[:, y_index, k] .* s[:, y_index, k])
+        axs[k].plot(rgx, flux)
     end
 
-    axs[1].set_title("Поток азота через границу y = " * string(y_value), y=1.08)
+    axs[1].set_title("Поток азота через границу y = "   * string(y_value), y=1.08)
     axs[2].set_title("Поток пентана через границу y = " * string(y_value), y=1.08)
     
     savefig("../img/2phase-filtration-flux" * string(Integer(y_value)) * ".png", dpi=200)
     savefig("../img/2phase-filtration-flux" * string(Integer(y_value)) * ".svg")
 end
 
+function dump_total_liquid_flux(sys::System, p::Parameters,
+        t::Integer)
+    # total_flux_final = 0
+    # total_flux_init  = 0
+
+    # ρ₂_init  = get_boundary(sys.ρ[:, :, 2], 1)
+    # ρ₂_final = get_boundary(sys.ρ[:, :, 2], p.nx - 1)
+    # s₂_init  = get_boundary(sys.s[:, :, 2], 1)
+    # s₂_final = get_boundary(sys.s[:, :, 2], p.nx - 1)
+    # v₂_init  = get_boundary(sys.v[:, :, 2], 1)
+    # v₂_final = get_boundary(sys.v[:, :, 2], p.nx - 1)
+    flux_init  = get_flux(sys.ρ[:, :, 2], sys.s[:, :, 2],
+                         sys.v[:, :, 2], 1)
+    flux_final = get_flux(sys.ρ[:, :, 2], sys.s[:, :, 2],
+                         sys.v[:, :, 2], p.ny - 1)
+
+    total_flux_init  = sum(flux_init)
+    total_flux_final = sum(flux_final)
+
+    if t == 1
+        io_init  = open("../dump/total_flux_init.txt",  "w")
+        io_final = open("../dump/total_flux_final.txt", "w")
+    else
+        io_init  = open("../dump/total_flux_init.txt",  "a+")
+        io_final = open("../dump/total_flux_final.txt", "a+")
+    end
+    writedlm(io_init,  total_flux_init,  '\n')
+    writedlm(io_final, total_flux_final, '\n')
+end
+
 function plot(sys::System, p::Parameters)
     plot_density(sys.u, sys.v, sys.ρ, p)
     plot_pressure(sys.u, sys.v, sys.P, p)
-    plot_fluxes(sys.u, sys.v, sys.ρ, sys.s, p, 0.0, 1)
-    plot_fluxes(sys.u, sys.v, sys.ρ, sys.s, p, 2.0, p.ny)
+    # plot_fluxes(sys.u, sys.v, sys.ρ, sys.s, p, 0.0, 1)
+    # plot_fluxes(sys.u, sys.v, sys.ρ, sys.s, p, 2.0, p.ny - 1)
 end
 
 function dump(sys::System, p::Parameters)
