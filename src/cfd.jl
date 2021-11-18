@@ -19,10 +19,6 @@ function cnswe(arr::AbstractMatrix{T},
     return c, n, s, w, e
 end
 
-# const fgas(s::AbstractFloat)::AbstractFloat = s^2
-# const fliq(s::AbstractFloat)::AbstractFloat = (1 .- s)^2
-# const fresisting = (fgas, fliq)::Tuple{Function, Vararg{Function}}
-
 function f_phase(s::AbstractFloat)::AbstractFloat
     return s^2
 end
@@ -69,7 +65,7 @@ function continuity_equation_fill_F!(;
     @debug ρnext ρwork
 end
 
-## Predictor
+# -------------------- Predictor ------------------------- #
 function continuity_equation!(syswork::System, 
         sysnext::System, p::Parameters)
     for k = 1 : 2
@@ -85,8 +81,10 @@ function continuity_equation!(syswork::System,
     end
     @debug "Saturation " sysnext.s
 end
+# -------------------------------------------------------- #
 
-## Corrector
+
+# -------------------- Corrector ------------------------- #
 function continuity_equation!(syswork::System,
         sysnext_pred::System, sysnext::System,
         p::Parameters)
@@ -164,68 +162,6 @@ end
 
 # ---------------------- BC & IC ------------------------- #
 
-function boundary_density!(ρ::AbstractArray{T, 3},
-        P::AbstractMatrix{T}, s::AbstractArray{T, 3},
-        p::Parameters) where T<:AbstractFloat
-    @. @views ρ[:, 1, 1]  = density(ideal_gas, P[:, 1]) *
-                                                 s[:, 1, 1]
-    @. @views ρ[:, p.ny, 1] = density(ideal_gas, P[:, p.ny])*
-                                                 s[:, p.ny, 1]
-    @. @views ρ[1, :, 1]  = density(ideal_gas, P[1, :]) *
-                                                 s[1, :, 1]
-    @. @views ρ[p.nx, :, 1] = density(ideal_gas, P[p.nx, :])*
-                                                 s[p.nx, :, 1]  
-
-    @. @views ρ[:, 1, 2]  = density(tait_C₅H₁₂, P[:, 1]) *
-                                                 s[p.nx, :, 2]
-    @. @views ρ[:, p.ny, 2] = density(tait_C₅H₁₂, P[:,p.ny])*
-                                                 s[p.nx, :, 2]
-    @. @views ρ[1, :, 2]  = density(tait_C₅H₁₂, P[1, :]) *
-                                                 s[p.nx, :, 2]
-    @. @views ρ[p.nx, :, 2] = density(tait_C₅H₁₂, P[p.nx,:])*
-                                                 s[p.nx, :, 2]
-end
-
-function boundary_density!(sys::System, p::Parameters)
-    boundary_density!(sys.ρ, sys.P, sys.s, p)
-end
-
-function boundary_saturation!(
-        ρ̂₁::AbstractMatrix{T},
-        ρ̂₂::AbstractMatrix{T},
-        s::AbstractArray{T, 3},
-        p::Parameters) where T<:AbstractFloat
-## Inlet
-## We derive the saturation from the molar composition
-## ψ = ν₁ / ν₂ and the densities ρ̂₁ and ρ̂₂.
-## s_boundary = (s_1 + s_2) / 2
-    ρ̂₁_bound::Array{AbstractFloat} = ρ̂₁[:, 1]
-    ρ̂₂_bound::Array{AbstractFloat} = ρ̂₁[:, 1]
-    s_bound::Array{AbstractFloat}  = ρ̂₁[:, 1]
-
-    @. @views ρ̂₁_bound = (ρ̂₁[:, 1]
-                + ρ̂₁[:, 2]) / 2
-    @. @views ρ̂₂_bound = (ρ̂₂[:, 1]
-                + ρ̂₂[:, 2]) / 2
-    @. @views s_bound  = (ρ̂₁_bound / ρ̂₂_bound *
-               p.M[2] * (1 - p.ψ) / p.M[1] / p.ψ + 1)^(-1)
-    @. @views s[:, 1, 1] = 2 * s_bound -
-               s[:, 1, 1]
-
-## Outlet
-## ∂s / ∂n⃗ = 0
-    @. @views s[:, ny, 1] = s[:, ny - 1, 1]
-
-    @. @views s[:, 1, 2] = 1 - s[:, 1, 1]
-    @. @views s[:, ny, 1] = 1 - s[:, ny, 1]
-end
-
-function boundary_saturation!(sys::System, p::Parameters)
-    ρ̂₁ = density.(ideal_gas, sys.P)
-    ρ̂₂ = density.(tait_C₅H₁₂, sys.P)
-    boundary_saturation!(ρ̂₁, ρ̂₂, sys.s, p)
-end
-
 function initial_saturation!(
         ρ̂₁::AbstractMatrix{T},
         ρ̂₂::AbstractMatrix{T},
@@ -244,77 +180,6 @@ function initial_saturation!(sys::System, p::Parameters)
     initial_saturation!(ρ̂₁, ρ̂₂, sys.s, p)
 end
 
-function boundary_pressure!(P::Array{T, 2},
-        p::Parameters) where T<:AbstractFloat
-    ## P = Pin at y = 0 && x ∈ [0, 1]
-    @. @views P[:, 1] = 2 * p.Pin - P[:, 2]
-
-    ## P = Pout at y = 2
-    @. @views P[:, p.ny] = 2 * p.Pout - P[:, p.ny - 1]
-
-    ## ∂P / ∂x = 0 at x = 0, 2
-    @. @views P[p.nx, :] = P[p.nx - 1, :]
-    @. @views P[1, :] = P[2, :]
-
-#     ## ∂P / ∂y = 0 at y = 0  && x ∈ [1, 2]
-#     @. @views P[nx ÷ 2 + 1: nx, 1] =
-#        P[nx ÷ 2 + 1: nx, 2]
-end
-
-function boundary_pressure!(sys::System, p::Parameters)
-    boundary_pressure!(sys.P, p)
-end
-
-function boundary_velocity!(; f::Function, p::Parameters,
-        k::Integer,
-        s::AbstractMatrix{T},
-        u::AbstractMatrix{T},
-        v::AbstractMatrix{T},
-        P::AbstractMatrix{T}) where T<:AbstractFloat
-    ## u = 0 at x = 0, 2 (walls)
-    @. @views u[1, :] = -u[2, :]
-    @. @views u[p.nx, :] = -u[p.nx - 1, :]
-#     ## v = 0 at y = 0 && x ∈ [1, 2]
-#     @. @views v[p.nx ÷ 2 + 1: p.nx, 1] = 0
-
-    ## Darcy at y = 0 && x ∈ [0, 1], y = 2 (inlet & outlet)
-    @. @views v[:, 1] =  -p.K / p.μ[k] *
-     f_phase(s[:, 1]) * (-3 * P[:, 1] +
-     4 * P[:, 2] - P[:, 3]) / (2 * p.Δy)
-
-    @. @views v[:, p.ny] = -p.K / p.μ[k] * f_phase(s[:, p.ny]) *
-    (-3 * P[:, ny] + 4 * P[:, ny - 1] - P[:, ny - 2]) /
-    (-2 * p.Δy)
-end
-
-function boundary_velocity!(sys::System, p::Parameters)
-    ## Type unstable because of 'f=f[k]'
-    ## This answer doesn't work because of views
-    ## https://discourse.julialang.org/t/how-to-make-type-stable-passing-an-element-of-a-vector-of-functions/60068
-
-    # f(s::AbstractFloat)::AbstractFloat = s^2
-
-    for k = 1 : 2
-        @views boundary_velocity!(s=sys.s[:, :, k],
-            u=sys.u[:, :, k], v=sys.v[:, :, k],
-            P=sys.P, p=p, k=k)
-    end
-
-    # fgas(s) = s^2
-    # fliq(s) = (1 .- s)^2
-
-    ## This is type stable
-    # @views boundary_velocity!(f=fgas,
-    #     s=sys.s, u=sys.u[:, :, 1], v=sys.v[:, :, 1],
-    #     P=sys.P, p=p, k=1)
-
-    # @views boundary_velocity!(f=fliq,
-    #     s=sys.s, u=sys.u[:, :, 2], v=sys.v[:, :, 2],
-    #     P=sys.P, p=p, k=2)
-end
-# -------------------------------------------------------- #
-
-# --------------------- New BC --------------------------- #
 function apply_bc!(; grid_ghost::AbstractMatrix{T},
         grid_inside::AbstractMatrix{T}, a::AbstractMatrix{T},
         b::AbstractMatrix{T}, rhs::AbstractMatrix{T},
@@ -322,15 +187,11 @@ function apply_bc!(; grid_ghost::AbstractMatrix{T},
     @views @. grid_ghost = (2 * Δh * rhs + grid_inside *
                                    (2 * b - a * Δh)) /
                                   (a * Δh + 2 * b)
-    # println("Denominator: ", (a * p.Δx + 2 * b))
-    # println("ghost ", grid_ghost)
-    # println("")
 end
 
 function apply_bc!(grid::Array{T, 3}, bc::BoundaryCondition{T},
         rhs::Array{T, 3}, p::Parameters) where T<:AbstractFloat
     ## left
-    # println("left")
     @views apply_bc!(grid_ghost  = grid[1, :, :],
               grid_inside = grid[2, :, :],
               a   = bc.a[:, 1, :],
@@ -338,7 +199,6 @@ function apply_bc!(grid::Array{T, 3}, bc::BoundaryCondition{T},
               rhs =  rhs[:, 1, :], p=p, Δh = p.Δx)
 
     ## right
-    # println("right")
     @views apply_bc!(grid_ghost  = grid[nx,     :, :],
               grid_inside = grid[nx - 1, :, :],
               a   = bc.a[:, 2, :],
@@ -346,7 +206,6 @@ function apply_bc!(grid::Array{T, 3}, bc::BoundaryCondition{T},
               rhs =  rhs[:, 2, :], p=p, Δh = p.Δx)
 
     ## top
-    # println("top")
     @views apply_bc!(grid_ghost  = grid[:, ny,     :],
               grid_inside = grid[:, ny - 1, :],
               a   = bc.a[:, 3, :],
@@ -354,7 +213,6 @@ function apply_bc!(grid::Array{T, 3}, bc::BoundaryCondition{T},
               rhs =  rhs[:, 3, :], p=p, Δh = p.Δy)
 
     ## bottom
-    # println("bottom")
     @views apply_bc!(grid_ghost  = grid[:, 1, :],
               grid_inside = grid[:, 2, :],
               a   = bc.a[:, 4, :],
@@ -363,20 +221,28 @@ function apply_bc!(grid::Array{T, 3}, bc::BoundaryCondition{T},
 end
 
 function update_RHS_saturation!(; s_RHS::AbstractMatrix{T},
-        P::Array{T, 1}, p::Parameters) where T<:AbstractFloat
+        P::Array{T, 1}, p::Parameters,
+        t::Integer) where T<:AbstractFloat
     @views ρ̂₁_bound    = density.(ideal_gas,  P)
     @views ρ̂₂_bound    = density.(tait_C₅H₁₂, P)
-    @views s_RHS[:, 1] = saturation.(ρ̂₁_bound, ρ̂₂_bound, p.ψ,
+
+    if t < p.relax_steps 
+        ψ = (p.ψ - p.ψ₀) * t / relax_steps + p.ψ₀
+    else
+        ψ = p.ψ
+    end
+
+    @views s_RHS[:, 1] = saturation.(ρ̂₁_bound, ρ̂₂_bound, ψ,
                                          p.M[1], p.M[2])
     @views @. s_RHS[:, 2] = 1 - s_RHS[:, 1]
 end
 
 function update_RHS_saturation!(s_RHS::Array{T, 3}, P::Array{T, 2},
-        p::Parameters) where T<:AbstractFloat
+        p::Parameters, t::Integer) where T<:AbstractFloat
     ## bottom inlet
     @views update_RHS_saturation!(s_RHS = s_RHS[p.inlet, 4, :],
                            P = fill(p.Pin, last(collect(p.inlet))),
-                           p = p)
+                           p = p, t = t)
     ## everywhere else we don't have to do anything because
     ## ∂s / ∂n = 0
 end
@@ -403,11 +269,16 @@ function update_RHS_density!(ρ_RHS::Array{T, 3},
     @views @. ρ_RHS[:, :, 2] = s₂_bound * ρ̂₂_bound
 end
 
-## We call this only once during init
 function update_RHS_pressure!(P_RHS::Array{T, 3},
-        p::Parameters) where T<:AbstractFloat
+        p::Parameters, t::Integer) where T<:AbstractFloat
+    if t < p.relax_steps
+        P_inlet = (p.Pin - p.P₀) * t / p.relax_steps + p.P₀
+    else
+        P_inlet = p.Pin
+    end
+
     ## bottom inlet
-    @views @. P_RHS[p.inlet, 4, 1] = p.Pin
+    @views @. P_RHS[p.inlet, 4, 1] = P_inlet
 
     ## top outlet
     @views @. P_RHS[:, 3, 1]       = p.Pout
@@ -439,17 +310,20 @@ function update_RHS_velocity!(v_RHS::Array{T, 3},
     end
 end
 
-function apply_bc_pres_sat_den!(sys::System, p::Parameters)
+function apply_bc_pres_sat_den!(sys::System, p::Parameters,
+        t::Integer)
     ## ∂P / ∂n = 0 at walls
     ## P = Pin     at inlet
     ## P = Pout    at outlet
+    update_RHS_pressure!(sys.bc_RHS.P, p, t)
     P_tmp = zeros(p.nx, p.ny, 2)
     P_tmp[:, :, 1] = sys.P
     apply_bc!(P_tmp, p.bc.P, sys.bc_RHS.P, p)
     sys.P = P_tmp[:, :, 1]
 
     ## s_inlet = s_inlet(ρ̂₁(T, P), ρ̂₂(P, T), P, T)
-    update_RHS_saturation!(sys.bc_RHS.s, sys.P, p)
+    ## ∂s / ∂n = 0 everywhere else
+    update_RHS_saturation!(sys.bc_RHS.s, sys.P, p, t)
     apply_bc!(sys.s, p.bc.s, sys.bc_RHS.s, p)
 
     ## ρ_k_bound = ρ̂_k_bound(T, P) * s_k_bound(T, P)
@@ -459,6 +333,7 @@ end
 
 function apply_bc_velocity!(sys::System, p::Parameters)
     ## Darcy at inlet and outlet
+    ## v_n at walls
     update_RHS_velocity!(sys.bc_RHS.v, sys.P, sys.s, p)
     apply_bc!(sys.u, p.bc.u, sys.bc_RHS.u, p)
     apply_bc!(sys.v, p.bc.v, sys.bc_RHS.v, p)
@@ -468,31 +343,17 @@ function initial_conditions!(sys::System, p::Parameters)
     ## ∂P / ∂n = 0 at walls
     ## P = Pin     at inlet
     ## P = Pout    at outlet
-    update_RHS_pressure!(sys.bc_RHS.P, p)
+    update_RHS_pressure!(sys.bc_RHS.P, p, 0)
     P_tmp = zeros(p.nx, p.ny, 2)
     P_tmp[:, :, 1] = sys.P
     apply_bc!(P_tmp, p.bc.P, sys.bc_RHS.P, p)
     sys.P = P_tmp[:, :, 1]
 
     initial_saturation!(sys, p)
-    # println("Initial saturation")
-    # println(sys.s)
 
     ## s_inlet = s_inlet(ρ̂₁(T, P), ρ̂₂(P, T), P, T)
-    update_RHS_saturation!(sys.bc_RHS.s, sys.P, p)
+    update_RHS_saturation!(sys.bc_RHS.s, sys.P, p, 0)
     apply_bc!(sys.s, p.bc.s, sys.bc_RHS.s, p)
-
-    # println("Saturation after bc:")
-    # println(sys.s)
-
-    # println("Saturation RHS bottom")
-    # println(sys.bc_RHS.s[:, 4, 1])
-
-    # println("Saturatin inlet ghost bottom")
-    # println(sys.s[p.inlet, 1, 1])
-
-    # println("Saturatin inlet inside bottom")
-    # println(sys.s[p.inlet, 2, 1])
 
     density!(sys)
     update_RHS_density!(sys.bc_RHS.ρ, sys.s, sys.P, p)
@@ -500,7 +361,6 @@ function initial_conditions!(sys::System, p::Parameters)
 
     ## Darcy at inlet and outlet
     update_RHS_velocity!(sys.bc_RHS.v, sys.P, sys.s, p)
-    # println("RHS_velocity", sys.bc_RHS.v)
     apply_bc!(sys.u, p.bc.u, sys.bc_RHS.u, p)
     apply_bc!(sys.v, p.bc.v, sys.bc_RHS.v, p)
 end
@@ -512,5 +372,44 @@ function initial_RHS(p::Parameters)
     s_RHS = zeros(max(p.nx, p.ny), 4, 2)
     P_RHS = zeros(max(p.nx, p.ny), 4, 2)
     return BoundaryRHS(u_RHS, v_RHS, ρ_RHS, s_RHS, P_RHS)
+end
+# -------------------------------------------------------- #
+
+# -------------------- Flux ------------------------------ #
+function get_boundary(a::Array{T, 2},
+        j::Integer) where T<:AbstractFloat
+    @views a_bound = (a[:, j] + a[:, j + 1]) / 2
+    return a_bound
+end
+
+function get_flux(ρ::Array{T, 2}, s::Array{T, 2}, v::Array{T, 2},
+        j::Integer) where T<:AbstractFloat
+    ρ_bound = get_boundary(ρ, j)
+    s_bound = get_boundary(s, j)
+    v_bound = get_boundary(v, j)
+    return ρ_bound ./ s_bound .* v_bound
+end
+
+function get_total_flux(sys::System, p::Parameters)
+    flux_init  = zeros(2, p.nx)
+    flux_final = zeros(2, p.nx)
+    for k = 1 : 2
+        flux_init[k, :]  = get_flux(sys.ρ[:, :, k],
+                                    sys.s[:, :, k],
+                                    sys.v[:, :, k], 1)
+        flux_final[k, :] = get_flux(sys.ρ[:, :, k],
+                                    sys.s[:, :, k],
+                                    sys.v[:, :, k], p.ny - 1)
+    end
+    flux_init_total  = sum(flux_init,  dims = 2)
+    flux_final_total = sum(flux_final, dims = 2)
+    return flux_init_total, flux_final_total
+end
+
+function get_content_inside(sys::System, p::Parameters)
+    content = zeros(2)
+    @views content[1] = sum(sys.ρ[:, :, 1] ./ sys.s[:, :, 1])
+    @views content[2] = sum(sys.ρ[:, :, 2] ./ sys.s[:, :, 2])
+    return content
 end
 # -------------------------------------------------------- #

@@ -4,6 +4,9 @@
 using Markdown
 using InteractiveUtils
 
+# ╔═╡ b58c89f1-518d-4008-81a5-1557b2852711
+include("structs.jl")
+
 # ╔═╡ 04bbf20d-ebb9-4acc-b821-27ee3d5b3b0a
 md"""
 # Boundary Conditions Documentation
@@ -43,35 +46,54 @@ f_{ghost} = \frac{2 \Delta h g + f_{inside} (2b - a \Delta h)}{a \Delta h + 2b}
 
 #### Implementation
 
-The struct Boundary will hold 4 arrays, one for each border: left, right, top, bottom, in the form of a 2D array.
+We keep a and b in an unmutable struct because they are set as a parameter in the beginning of the simulation, and they don't change. Therefore, they are kept with the other simulation parameters
 
-x[1] -> left
+g, on the other hand, will get updated on every step, so it seems logical to keep together with all the other system parameters that change over time. We will denote it as f_RHS, since it is then easy to infer that we are refering the right hand side of the BC equation.
 
-x[2] -> right
 
-x[3] -> top
+The struct BoundaryCondtions holds 2 3D arrays, a and b.
 
-x[4] -> bottom
+Each of this holds 4 subarrays for each component, one for each border: left, right, top, bottom, in the form of a 2D array.
 
-Then, the struct BoundaryCondition will hold the parameters a, b and g, each of type Boundary.
+h[:][1][k] -> left
+
+h[:][2][k] -> right
+ 
+h[:][3][k] -> top
+ 
+h[:][4][k] -> bottom
+
+Pressure is the same for both components, but for consistency we will also use the same structure, making use of the first index k = 1 only.
+
 """
 
-# ╔═╡ 1f5ca81e-3d74-11ec-2394-2d82e6fcccbd
-struct Boundary{T}
-    x::Array{T, 2}
-end
+# ╔═╡ fc2c2996-60f6-476f-8cdf-bdde873628c4
+NamedTuple{fieldnames(BoundaryCondition)}(fieldtypes(BoundaryCondition))
 
-# ╔═╡ 50013c2c-befe-4483-bc6f-764a31a33ccd
-struct BoundaryCondition{T}
-    a::Boundary{T}
-    b::Boundary{T}
-end
+# ╔═╡ 550f6393-9a8a-4ce1-9f7f-dd5d0012fac1
+md"""
+The structure Parameters stores bc::BoundaryCondtions
+"""
+
+# ╔═╡ 47a99444-4329-4236-ad36-6c0e9491c250
+NamedTuple{fieldnames(BoundaryConditions)}(fieldtypes(BoundaryConditions))
+
+# ╔═╡ 72246b26-fa0f-49c2-9f72-9ee300d34d41
+md"""
+The struture Systems stores bc_RHS::BoundaryRHS
+"""
+
+# ╔═╡ c121c421-38b0-49e2-893a-f2645d9b2071
+NamedTuple{fieldnames(BoundaryRHS)}(fieldtypes(BoundaryRHS))
+
+# ╔═╡ bf125994-a82d-409e-a195-8b77d5c2cd3e
+
 
 # ╔═╡ 923b99aa-52dc-4068-b888-b5cc9d8c516a
 md"""
 #### Algorithm
 
-1. Enforce the BC: ``\frac{\partial P}{\partial n} = 0`` on the walls.
+1. Enforce the BC: ``\frac{\partial P}{\partial n} = 0`` on the walls, ``P_{in}`` and ``P_{out}`` on inlet and outlet, respectively.
 
 2. Obtain ``\hat\rho_{\alpha, \partial \Omega} = \hat\rho_{\alpha, \partial \Omega}(T, P_{\partial \Omega}) `` from their respective equations of state. ``\alpha = 1, 2`` - component. On the inlet and outlet, the initial pressure is given as ``P_{in}`` and ``P_{out}``, respectively. On the walls, we derived it in the previous step.
 
@@ -143,10 +165,7 @@ s_{k, \partial \Omega}
 """
 
 # ╔═╡ 2ef6d608-3aef-4647-a523-47fab6ff1154
-md"""
-## Todo
-1. Now it runs... but nothing changes with time :c
-"""
+
 
 # ╔═╡ f732b89b-5361-4dc5-9051-62fa8ae698cb
 
@@ -162,10 +181,15 @@ md"""
 
 # ╔═╡ Cell order:
 # ╟─04bbf20d-ebb9-4acc-b821-27ee3d5b3b0a
-# ╠═1f5ca81e-3d74-11ec-2394-2d82e6fcccbd
-# ╠═50013c2c-befe-4483-bc6f-764a31a33ccd
+# ╠═b58c89f1-518d-4008-81a5-1557b2852711
+# ╠═fc2c2996-60f6-476f-8cdf-bdde873628c4
+# ╟─550f6393-9a8a-4ce1-9f7f-dd5d0012fac1
+# ╠═47a99444-4329-4236-ad36-6c0e9491c250
+# ╟─72246b26-fa0f-49c2-9f72-9ee300d34d41
+# ╠═c121c421-38b0-49e2-893a-f2645d9b2071
+# ╠═bf125994-a82d-409e-a195-8b77d5c2cd3e
 # ╟─923b99aa-52dc-4068-b888-b5cc9d8c516a
-# ╟─2ef6d608-3aef-4647-a523-47fab6ff1154
+# ╠═2ef6d608-3aef-4647-a523-47fab6ff1154
 # ╠═f732b89b-5361-4dc5-9051-62fa8ae698cb
 # ╠═c427e959-cc5e-4eeb-b50c-8c06aec042e8
 # ╠═6f6caa2a-f2ed-4fa0-9964-0af022384749

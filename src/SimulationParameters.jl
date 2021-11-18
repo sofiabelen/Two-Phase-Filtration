@@ -3,7 +3,7 @@ module SimulationParameters
 include("physics.jl")
 
 export Δt, nsteps, L, nx, ny, Δx, Δy, φ, K, μ, Pin, Pout,
-       P₀, M, ψ, ψ₀, bc, inlet, wall
+       P₀, M, ψ, ψ₀, bc, inlet, wall, relax_steps
 
 ## CFL condition: dt ∼ dx² !!
 
@@ -14,7 +14,12 @@ export Δt, nsteps, L, nx, ny, Δx, Δy, φ, K, μ, Pin, Pout,
 # nsteps = 10000
 # nsteps = 50000
 # nsteps = 25000
+
+# nsteps = 500000
+# nsteps = 320000
 nsteps = 1000
+
+relax_steps = 100
 
 ## Space grid [0, 2] × [0, 2]
 L = 2
@@ -41,7 +46,7 @@ P₀ = Pout
 ## Molar masses
 M = [MOLAR_MASS_IGAS, MOLAR_MASS_PENTANE]
 
-## ψ = m₁ / (m₂ M₁ / M₂ + m₁)
+## ψ = ν₁ / ν₂ = m₁ / (m₂ M₁ / M₂ + m₁)
 ## Molar Composition on the Inlet
 ψ = 0.9
 
@@ -50,8 +55,10 @@ M = [MOLAR_MASS_IGAS, MOLAR_MASS_PENTANE]
 
 ## -------------------------- BC -------------------------- ##
 
-inlet = 1 : nx ÷ 2
-wall  = nx ÷ 2 + 1: nx
+# inlet = 1 : nx ÷ 2
+# wall  = nx ÷ 2 + 1: nx
+inlet = 1 : nx
+wall  = nx: nx
 
 a_u = zeros(max(nx, ny), 4, 2)
 a_v = zeros(max(nx, ny), 4, 2)
@@ -108,25 +115,6 @@ v_bc = BoundaryCondition(a_v, b_v)
 ρ_bc = BoundaryCondition(a_ρ, b_ρ)
 s_bc = BoundaryCondition(a_s, b_s)
 P_bc = BoundaryCondition(a_P, b_P)
-
-function check_bc(bc::BoundaryCondition, var::String)
-    for k = 1 : 2
-        for w = 1 : 4
-            for x = 1 : min(nx, ny)
-                if (bc.a[x, w, k]^2 + bc.b[x, w, k]^2) == 0
-                    return error("Wrong ", var, " bc at k = ", k,
-                                 " w = ", w, " x = ", x)
-                end
-            end
-        end
-    end
-end
-
-check_bc(u_bc, "u")
-check_bc(v_bc, "v")
-check_bc(ρ_bc, "ρ")
-check_bc(s_bc, "s")
-check_bc(P_bc, "P")
 
 bc = BoundaryConditions(u_bc, v_bc, ρ_bc, s_bc, P_bc)
 end

@@ -18,8 +18,11 @@
 ## We will denote it as f_RHS, since it is then easy to infer
 ## that we are refering the right hand side of the BC equation.
 ## 
-## The struct Boundary holds for each component 4 arrays,
+## The struct BoundaryCondtions holds two 3D arrays, a and b.
+## 
+## Each of this holds for each component 4 arrays,
 ## one for each border: left, right, top, bottom.
+## 
 ## This is stored in a 3D array, where the last index
 ## k corresponds to the component, and the second index
 ## denotes the border.
@@ -35,9 +38,6 @@
 ## Pressure is the same for both components, but for 
 ## consistency we will also use the same structure, but
 ## use only the first index k = 1.
-# struct Boundary{T}
-#     h::Array{T, 3}
-# end
 
 struct BoundaryCondition{T}
     a::Array{T, 3}
@@ -104,6 +104,7 @@ struct Parameters{T<:AbstractFloat}
     bc::BoundaryConditions{T}
     wall::UnitRange{Int}
     inlet::UnitRange{Int}
+    relax_steps::Integer
 end
 
 struct TaitEoS{T}

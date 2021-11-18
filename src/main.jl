@@ -2,61 +2,24 @@ include("cfd.jl")
 include("structs.jl")
 include("thermo.jl")
 include("dump.jl")
+include("plot.jl")
+include("test.jl")
 include("SimulationParameters.jl")
 
 ## https://stackoverflow.com/questions/37200025/how-to-import-custom-module-in-julia
 using DelimitedFiles, ..SimulationParameters
 sp = SimulationParameters
 
-function check_pressure(sys::System)
-    for index in CartesianIndices(sys.P)
-        i, j = Tuple(index)
-        if sys.P[i, j] < 0
-            return error("Negative Pressure [i, j] = [", i, ", ",
-                         j,"]")
-        end
-    end
-end
 
-function check_saturation(sys::System, p::Parameters)
-    for k = 1 : 2
-        for j = 2 : p.ny - 1
-            for i = 2 : p.nx - 1
-                if sys.s[i, j, k] < 0
-                    return error("Negative saturation, component ",
-                                 k, " [x, y] = [", i, ", ", j, "]")
-                end
-                if sys.s[i, j, k] > 1
-                    return error("Saturation > 1, component ",
-                                 k, " [x, y] = [", i, ", ", j, "]")
-                end
-            end
-        end
-    end
-end
-
-function check_density(sys::System, p::Parameters)
-    for k = 1 : 2
-        for j = 2 : p.ny - 1
-            for i = 2 : p.nx - 1
-                if sys.ρ[i, j, k] < 0
-                    return error("Negative density, component ",
-                                 k, " [x, y] = [", i, ", ", j, "]")
-                end
-            end
-        end
-    end
-end
-
-function update!(syswork::System, sysnext::System, p::Parameters)
+function update!(syswork::System, sysnext::System, p::Parameters,
+    t::Integer)
 # -------------------- Predictor ------------------------- #
 ## ρ̃ᵢⱼnext = ρᵢⱼwork + F⋅Δt      
     sysnext_pred = copy(sysnext)
 
     continuity_equation!(syswork, sysnext_pred, p)
-    # println("v ", sysnext_pred.v)
     find_pressure!(sysnext_pred, p)
-    apply_bc_pres_sat_den!(sysnext_pred, p)
+    apply_bc_pres_sat_den!(sysnext_pred, p, t)
     darcy!(sysnext_pred, p)
     apply_bc_velocity!(sysnext_pred, p)
 # -------------------------------------------------------- #
@@ -65,13 +28,14 @@ function update!(syswork::System, sysnext::System, p::Parameters)
 ## ρᵢⱼnext = ρᵢⱼwork + (F + F̃) / 2 ⋅Δt      
     continuity_equation!(syswork, sysnext_pred, sysnext, p)
     find_pressure!(sysnext, p)
-    apply_bc_pres_sat_den!(sysnext, p)
+    apply_bc_pres_sat_den!(sysnext, p, t)
     darcy!(sysnext, p)
     apply_bc_velocity!(sysnext, p)
 # -------------------------------------------------------- #
 end
 
 function init(p::Parameters)
+    check_bc(p.bc)
     P = fill(p.P₀, p.nx, p.ny)
     s = zeros(p.nx, p.ny, 2)
     u = zeros(p.nx, p.ny, 2)
@@ -95,10 +59,12 @@ function filtration(p::Parameters)
         check_saturation(syswork, p)
         check_density(syswork, p)
         check_pressure(syswork)
+        check_continuity(syswork, sysnext, p, t)
         println("Step i = ", t)
-        update!(syswork, sysnext, p)
+        update!(syswork, sysnext, p, t)
         sysnext, syswork = syswork, sysnext
-        dump(syswork, p)
+        # dump(syswork, p)
+        dump_total_liquid_flux(syswork, p, t)
     end
     return syswork
 end
@@ -179,6 +145,6 @@ println("typeof(bc): ", typeof(bc))
 p = Parameters(sp.nsteps, sp.nx, sp.ny, sp.L, sp.Δx,
                sp.Δy, sp.Δt, sp.φ, sp.K, sp.Pin,
                sp.Pout, sp.P₀, sp.ψ, sp.ψ₀, sp.M, sp.μ,
-               bc, sp.wall, sp.inlet)
+               bc, sp.wall, sp.inlet, sp.relax_steps)
 
 main(p)
