@@ -96,4 +96,17 @@ function find_pressure!(sys::System, p::Parameters)
         sys.s[i, j, 2] = 1 - sys.s[i, j, 1]
     end
 end
+
 # -------------------------------------------------------- #
+
+## -------------------- Saturation ---------------------- ##
+##
+## We derive the saturation from the molar composition
+## ψ = ν₁ / ν₂ and the densities ρ̂₁ and ρ̂₂.
+
+function saturation(ρ̂₁::T, ρ̂₂::T, ψ::T,
+        M₁::T, M₂::T) where T<:AbstractFloat
+    return (ρ̂₁ / ρ̂₂ * M₂ * (1 - ψ) / M₁ / ψ + 1)^(-1)
+end
+
+## ------------------------------------------------------ ##

@@ -108,6 +108,7 @@ function newton_raphson(; f::Function, fder::Function,
 
     return error("newton raphson method fails to reach accuracy of ",
                  eps_x, " in ", niter, " iterations Delta P = ",
-                 abs(f(x₀)), "x₀ = ", x₀)
+                 abs(f(x₀)), " x₀ = ", x₀,
+                 " delta x = ", abs(x₀ - xs[niter - 1]))
 end
 # -------------------------------------------------------- #
