@@ -47,8 +47,7 @@ function continuity_equation!(;
         p::Parameters) where T<:AbstractFloat
     for j = 2 : p.ny - 1
         for i = 2 : p.nx - 1
-            # ρc, ρn, ρs, ρw, ρe = cnswe(ρwork, i, j)
-            ρnext[i, j] = ρwork[i, j] + p.Δt  * F[i, j]
+            ρnext[i, j] = ρwork[i, j] + p.Δt * F[i, j]
         end
     end
     @debug ρnext ρwork
@@ -390,6 +389,7 @@ end
 
 # -------------------- Flux ------------------------------ #
 function calculate_flux!(sys::System, p::Parameters)
+    # ## Interpolation of densities
     # ## Φu = u_(i + 1/2, j) * (ρ_(i, j) + ρ_(i + 1, j)) / 2
     # for i = 1 : nx - 1
     #     @. @views sys.Φu[i, :, :] = sys.u[i, :, :] *
@@ -404,11 +404,31 @@ function calculate_flux!(sys::System, p::Parameters)
     #                                      sys.ρ[:, j + 1, :]) / 2
     # end
 
-    ## Φu = u_(i + 1/2, j) * ρ_(i, j)
-    @. @views sys.Φu = sys.u * sys.ρ
-
-    ## Φv = v_(i, j + 1/2) * ρ_(i, j)
-    @. @views sys.Φv = sys.v * sys.ρ
+    ## Upwind scheme
+    for i = 1 : nx
+        for j = 1 : ny
+            for k = 1 : 2
+                if i < nx && sys.P[i, j] >= sys.P[i + 1, j]
+                    ## ⟶ 
+                    sys.Φu[i, j, k] = sys.u[i, j, k] *
+                                      sys.ρ[i, j, k]
+                elseif i < nx && sys.P[i, j] < sys.P[i + 1, j]
+                    ## ⟵
+                    sys.Φu[i, j, k] = sys.u[i, j, k] *
+                                      sys.ρ[i + 1, j, k]
+                end
+                if j < ny && sys.P[i, j] >= sys.P[i, j + 1]
+                    ## ↑
+                    sys.Φv[i, j, k] = sys.v[i, j, k] *
+                                      sys.ρ[i, j, k]
+                elseif j < ny && sys.P[i, j] < sys.P[i, j + 1]
+                    ## ↓
+                    sys.Φv[i, j, k] = sys.v[i, j, k] *
+                                      sys.ρ[i, j + 1, k]
+                end
+            end
+        end
+    end
 end
 
 ## Gotta change all this!!
@@ -444,8 +464,23 @@ end
 
 function get_content_inside(sys::System, p::Parameters)
     content = zeros(2)
-    @views content[1] = sum(sys.ρ[:, :, 1] ./ sys.s[:, :, 1])
-    @views content[2] = sum(sys.ρ[:, :, 2] ./ sys.s[:, :, 2])
+
+    for k = 1 : 2
+        content[k] = sum(sys.ρ[2 : nx - 1, 2 : ny - 1, k])
+    end
+
     return content
+end
+
+function get_flux_in_out(sys::System, p::Parameters)
+    flux_init  = zeros(2)
+    flux_final = zeros(2)
+
+    for k = 1 : 2
+        flux_init[k]  = sum(sys.Φv[2 : nx - 1, 1, k])
+        flux_final[k] = sum(sys.Φv[2 : nx - 1, ny, k])
+    end
+
+    return flux_init, flux_final
 end
 # -------------------------------------------------------- #

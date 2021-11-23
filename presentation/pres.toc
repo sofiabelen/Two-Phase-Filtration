@@ -1,0 +1,5 @@
+\beamer@sectionintoc {1}{Введение}{2}{0}{1}
+\beamer@sectionintoc {2}{Постановка задачи}{6}{0}{2}
+\beamer@sectionintoc {3}{Методы, применяемые в работе}{8}{0}{3}
+\beamer@sectionintoc {4}{Основная часть}{11}{0}{4}
+\beamer@sectionintoc {5}{Выводы}{15}{0}{5}

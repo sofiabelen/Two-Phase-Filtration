@@ -19,7 +19,10 @@ export Δt, nsteps, L, nx, ny, Δx, Δy, φ, K, μ, Pin, Pout,
 # nsteps = 320000
 nsteps = 1000
 
-relax_steps = 1
+relax_t = 100
+relax_steps = round(Int, relax_t / Δt)
+println("relax steps: ", relax_steps)
+# relax_steps = 100
 
 ## Space grid [0, 2] × [0, 2]
 L = 2

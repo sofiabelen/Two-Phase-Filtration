@@ -8,6 +8,7 @@ include("SimulationParameters.jl")
 
 ## https://stackoverflow.com/questions/37200025/how-to-import-custom-module-in-julia
 using DelimitedFiles, ..SimulationParameters
+using Printf
 sp = SimulationParameters
 
 
@@ -15,24 +16,25 @@ function update!(syswork::System, sysnext::System, p::Parameters,
     t::Integer)
 # -------------------- Predictor ------------------------- #
 ## ρ̃ᵢⱼnext = ρᵢⱼwork + F⋅Δt      
-    sysnext_pred = copy(sysnext)
+    # sysnext_pred = copy(sysnext)
 
     calculate_flux!(syswork, p)
-    continuity_equation!(syswork, sysnext_pred, p)
-    find_pressure!(sysnext_pred, p)
-    apply_bc_pres_sat_den!(sysnext_pred, p, t)
-    darcy!(sysnext_pred, p)
-    # apply_bc_velocity!(sysnext_pred, p)
-# -------------------------------------------------------- #
-
-# -------------------- Corrector ------------------------- #
-## ρᵢⱼnext = ρᵢⱼwork + (F + F̃) / 2 ⋅Δt      
-    continuity_equation!(syswork, sysnext_pred, sysnext, p)
+    continuity_equation!(syswork, sysnext, p)
     find_pressure!(sysnext, p)
     apply_bc_pres_sat_den!(sysnext, p, t)
     darcy!(sysnext, p)
     # apply_bc_velocity!(sysnext, p)
 # -------------------------------------------------------- #
+ 
+# # -------------------- Corrector ------------------------- #
+# ## ρᵢⱼnext = ρᵢⱼwork + (F + F̃) / 2 ⋅Δt      
+#     calculate_flux!(sysnext_pred, p)
+#     continuity_equation!(syswork, sysnext_pred, sysnext, p)
+#     find_pressure!(sysnext, p)
+#     apply_bc_pres_sat_den!(sysnext, p, t)
+#     darcy!(sysnext, p)
+#     # apply_bc_velocity!(sysnext, p)
+# # -------------------------------------------------------- #
 end
 
 function init(p::Parameters)
@@ -62,10 +64,10 @@ function filtration(p::Parameters)
         check(syswork, sysnext, p, t)
         println("Step i = ", t)
         update!(syswork, sysnext, p, t)
+        # dump_mass(syswork, sysnext, p, t)
+        dump_total_in_out_flux(syswork, p, t)
+        # dump(syswork, p)
         sysnext, syswork = syswork, sysnext
-        dump(syswork, p)
-        # dump_total_liquid_flux(syswork, p, t)
-        dump_mass(syswork, p, t)
     end
     return syswork
 end
