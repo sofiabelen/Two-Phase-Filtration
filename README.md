@@ -47,7 +47,9 @@ $$P = P_1 \left( \frac{\rho_1}{s} \right)
 5. Renaming $\rho_i = \rho_i(t + \Delta t)$ and moving on to the next time step.
 
 ## Results
+
 ![Alt text](img/2phase-filtration-density.png?raw=true "1")
+
 ![Alt text](img/fluxes.gif?raw=true "1")
 
 ## How to Run
