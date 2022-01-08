@@ -48,7 +48,7 @@ $$P = P_1 \left( \frac{\rho_1}{s} \right)
 
 ## Results
 ![Alt text](img/2phase-filtration-density.png?raw=true "1")
-![Alt text](img/fluxes?raw=true "1")
+![Alt text](img/fluxes.gif?raw=true "1")
 
 ## How to Run
 
