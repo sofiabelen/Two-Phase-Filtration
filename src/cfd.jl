@@ -19,6 +19,17 @@ function cnswe(arr::AbstractMatrix{T},
     return c, n, s, w, e
 end
 
+## Fluxes -> staggered grid
+function nswe(Φu::AbstractMatrix{T},
+        Φv::AbstractMatrix{T},
+        i::Int, j::Int) where T<:AbstractFloat
+    s = Φv[i, j - 1]
+    w = Φu[i - 1, j]
+    n = Φv[i, j]
+    e = Φu[i, j]
+    return n, s, w, e
+end
+
 function f_phase(s::AbstractFloat)::AbstractFloat
     return s^2
 end
@@ -36,33 +47,25 @@ function continuity_equation!(;
         p::Parameters) where T<:AbstractFloat
     for j = 2 : p.ny - 1
         for i = 2 : p.nx - 1
-            ρc, ρn, ρs, ρw, ρe = cnswe(ρwork, i, j)
-            ρnext[i, j] = ρc + p.Δt  * F[i, j]
+            ρnext[i, j] = ρwork[i, j] + p.Δt * F[i, j]
         end
     end
     @debug ρnext ρwork
 end
 
 function continuity_equation_fill_F!(;
-        ρwork::AbstractMatrix{T},
-        uwork::AbstractMatrix{T},
-        vwork::AbstractMatrix{T},
+        Φu::AbstractMatrix{T},
+        Φv::AbstractMatrix{T},
         F::AbstractMatrix{T},
         p::Parameters) where T<:AbstractFloat
     for j = 2 : p.ny - 1
         for i = 2 : p.nx - 1
-            ρc, ρn, ρs, ρw, ρe = cnswe(ρwork, i, j)
-            uc, un, us, uw, ue = cnswe(uwork, i, j)
-            vc, vn, vs, vw, ve = cnswe(vwork, i, j)
-    
-            F[i, j] = - 1 / p.φ *
-                (uc * (ρe - ρw) / (2 * p.Δx) +
-                 vc * (ρn - ρs) / (2 * p.Δy) +
-                 ρc * (ue - uw) / (2 * p.Δx) +
-                 ρc * (vn - vs) / (2 * p.Δy))
+            Φn, Φs, Φw, Φe = nswe(Φu, Φv, i, j)
+
+            F[i, j] = - 1 / p.φ * ((Φe - Φw) / p.Δx +
+                                   (Φn - Φs) / p.Δy)
         end
     end
-    @debug ρnext ρwork
 end
 
 # -------------------- Predictor ------------------------- #
@@ -71,10 +74,10 @@ function continuity_equation!(syswork::System,
     for k = 1 : 2
         @debug "Component $k continuity eqn"
         @views continuity_equation_fill_F!(
-                                    ρwork=syswork.ρ[:, :, k],
-                                    uwork=syswork.u[:, :, k],
-                                    vwork=syswork.v[:, :, k],
+                                    Φu=syswork.Φu[:, :, k],
+                                    Φv=syswork.Φv[:, :, k],
                                     F=syswork.F[:, :, k], p=p)
+
         @views continuity_equation!(ρnext=sysnext.ρ[:, :, k], 
                                     ρwork=syswork.ρ[:, :, k],
                                     F=syswork.F[:, :, k], p=p)
@@ -89,19 +92,19 @@ function continuity_equation!(syswork::System,
         sysnext_pred::System, sysnext::System,
         p::Parameters)
     for k = 1 : 2
-        @debug "Component $k continuity eqn"
         @views continuity_equation_fill_F!(
-                                    ρwork=sysnext_pred.ρ[:, :, k],
-                                    uwork=sysnext_pred.u[:, :, k],
-                                    vwork=sysnext_pred.v[:, :, k],
+                                    Φu=sysnext_pred.Φu[:, :, k],
+                                    Φv=sysnext_pred.Φv[:, :, k],
                                     F=sysnext_pred.F[:, :, k], p=p)
+
+        ## (F + F̃) / 2
+        @views F_avg = (syswork.F[:, :, k] .+
+                        sysnext_pred.F[:, :, k]) ./2
+
         @views continuity_equation!(ρnext=sysnext.ρ[:, :, k], 
                                     ρwork=syswork.ρ[:, :, k],
-                                    F=(syswork.F[:, :, k] .+
-                                       sysnext_pred.F[:, :, k]) ./2,
-                                    p=p)
+                                    F=F_avg, p=p)
     end
-    @debug "Saturation " sysnext.s
 end
 # -------------------------------------------------------- #
 
@@ -110,20 +113,29 @@ end
 
 ## Darcy's law
 ## v⃗ = -μ⁻¹ K̂⋅f(s) ⋅∇P
-
 function darcy!(;
         u::AbstractMatrix{T}, v::AbstractMatrix{T},
         P::AbstractMatrix{T}, s::AbstractMatrix{T},
         p::Parameters, k::Integer) where T<:AbstractFloat
-    for j = 2 : p.ny - 1
-        for i = 2 : p.nx - 1
-            ## можно через (ρwork + ρ) / 2 -> 2-го порядка
-            Pc, Pn, Ps, Pw, Pe = cnswe(P, i, j)
-
+    ## We iterate through the whole u and v arrays, so it turns
+    ## out, that we don't need BC on velocities thanks to the
+    ## staggered grid :)
+    for j = 1 : p.ny
+        for i = 1 : p.nx - 1
+            Pw = P[i, j]
+            Pe = P[i + 1, j]
             u[i, j] = -p.K / p.μ[k] * f_phase(s[i, j]) *
-                (Pe - Pw) / (2 * p.Δx)
-                v[i, j] = -p.K / p.μ[k] * f_phase(s[i, j]) *
-                (Pn - Ps) / (2 * p.Δy)
+                (Pe - Pw) / p.Δx
+
+        end
+    end
+
+    for j = 1 : p.ny - 1
+        for i = 1 : p.nx
+            Ps = P[i, j]
+            Pn = P[i, j + 1]
+            v[i, j] = -p.K / p.μ[k] * f_phase(s[i, j]) *
+                (Pn - Ps) / p.Δy
         end
     end
 end
@@ -331,13 +343,13 @@ function apply_bc_pres_sat_den!(sys::System, p::Parameters,
     apply_bc!(sys.ρ, p.bc.ρ, sys.bc_RHS.ρ, p)
 end
 
-function apply_bc_velocity!(sys::System, p::Parameters)
-    ## Darcy at inlet and outlet
-    ## v_n at walls
-    update_RHS_velocity!(sys.bc_RHS.v, sys.P, sys.s, p)
-    apply_bc!(sys.u, p.bc.u, sys.bc_RHS.u, p)
-    apply_bc!(sys.v, p.bc.v, sys.bc_RHS.v, p)
-end
+# function apply_bc_velocity!(sys::System, p::Parameters)
+#     ## Darcy at inlet and outlet
+#     ## v_n at walls
+#     update_RHS_velocity!(sys.bc_RHS.v, sys.P, sys.s, p)
+#     apply_bc!(sys.u, p.bc.u, sys.bc_RHS.u, p)
+#     apply_bc!(sys.v, p.bc.v, sys.bc_RHS.v, p)
+# end
 
 function initial_conditions!(sys::System, p::Parameters)
     ## ∂P / ∂n = 0 at walls
@@ -360,56 +372,115 @@ function initial_conditions!(sys::System, p::Parameters)
     apply_bc!(sys.ρ, p.bc.ρ, sys.bc_RHS.ρ, p)
 
     ## Darcy at inlet and outlet
-    update_RHS_velocity!(sys.bc_RHS.v, sys.P, sys.s, p)
-    apply_bc!(sys.u, p.bc.u, sys.bc_RHS.u, p)
-    apply_bc!(sys.v, p.bc.v, sys.bc_RHS.v, p)
+    # update_RHS_velocity!(sys.bc_RHS.v, sys.P, sys.s, p)
+    # apply_bc!(sys.u, p.bc.u, sys.bc_RHS.u, p)
+    # apply_bc!(sys.v, p.bc.v, sys.bc_RHS.v, p)
 end
 
 function initial_RHS(p::Parameters)
-    u_RHS = zeros(max(p.nx, p.ny), 4, 2)
-    v_RHS = zeros(max(p.nx, p.ny), 4, 2)
+    # u_RHS = zeros(max(p.nx, p.ny), 4, 2)
+    # v_RHS = zeros(max(p.nx, p.ny), 4, 2)
     ρ_RHS = zeros(max(p.nx, p.ny), 4, 2)
     s_RHS = zeros(max(p.nx, p.ny), 4, 2)
     P_RHS = zeros(max(p.nx, p.ny), 4, 2)
-    return BoundaryRHS(u_RHS, v_RHS, ρ_RHS, s_RHS, P_RHS)
+    return BoundaryRHS(ρ_RHS, s_RHS, P_RHS)
 end
 # -------------------------------------------------------- #
 
 # -------------------- Flux ------------------------------ #
-function get_boundary(a::Array{T, 2},
-        j::Integer) where T<:AbstractFloat
-    @views a_bound = (a[:, j] + a[:, j + 1]) / 2
-    return a_bound
-end
+function calculate_flux!(sys::System, p::Parameters)
+    # ## Interpolation of densities
+    # ## Φu = u_(i + 1/2, j) * (ρ_(i, j) + ρ_(i + 1, j)) / 2
+    # for i = 1 : nx - 1
+    #     @. @views sys.Φu[i, :, :] = sys.u[i, :, :] *
+    #                                     (sys.ρ[i,     :, :] +
+    #                                      sys.ρ[i + 1, :, :]) / 2
+    # end
 
-function get_flux(ρ::Array{T, 2}, s::Array{T, 2}, v::Array{T, 2},
-        j::Integer) where T<:AbstractFloat
-    ρ_bound = get_boundary(ρ, j)
-    s_bound = get_boundary(s, j)
-    v_bound = get_boundary(v, j)
-    return ρ_bound ./ s_bound .* v_bound
-end
+    # ## Φv = v_(i, j + 1/2) * (ρ_(i, j) + ρ_(i, j + 1)) / 2
+    # for j = 1 : ny - 1
+    #     @. @views sys.Φv[:, j, :] = sys.v[:, j, :] *
+    #                                     (sys.ρ[:, j,     :] +
+    #                                      sys.ρ[:, j + 1, :]) / 2
+    # end
 
-function get_total_flux(sys::System, p::Parameters)
-    flux_init  = zeros(2, p.nx)
-    flux_final = zeros(2, p.nx)
-    for k = 1 : 2
-        flux_init[k, :]  = get_flux(sys.ρ[:, :, k],
-                                    sys.s[:, :, k],
-                                    sys.v[:, :, k], 1)
-        flux_final[k, :] = get_flux(sys.ρ[:, :, k],
-                                    sys.s[:, :, k],
-                                    sys.v[:, :, k], p.ny - 1)
+    ## Upwind scheme
+    for i = 1 : nx
+        for j = 1 : ny
+            for k = 1 : 2
+                if i < nx && sys.P[i, j] >= sys.P[i + 1, j]
+                    ## ⟶ 
+                    sys.Φu[i, j, k] = sys.u[i, j, k] *
+                                      sys.ρ[i, j, k]
+                elseif i < nx && sys.P[i, j] < sys.P[i + 1, j]
+                    ## ⟵
+                    sys.Φu[i, j, k] = sys.u[i, j, k] *
+                                      sys.ρ[i + 1, j, k]
+                end
+                if j < ny && sys.P[i, j] >= sys.P[i, j + 1]
+                    ## ↑
+                    sys.Φv[i, j, k] = sys.v[i, j, k] *
+                                      sys.ρ[i, j, k]
+                elseif j < ny && sys.P[i, j] < sys.P[i, j + 1]
+                    ## ↓
+                    sys.Φv[i, j, k] = sys.v[i, j, k] *
+                                      sys.ρ[i, j + 1, k]
+                end
+            end
+        end
     end
-    flux_init_total  = sum(flux_init,  dims = 2)
-    flux_final_total = sum(flux_final, dims = 2)
-    return flux_init_total, flux_final_total
 end
+
+## Gotta change all this!!
+# function get_boundary(a::Array{T, 2},
+#         j::Integer) where T<:AbstractFloat
+#     @views a_bound = (a[:, j] + a[:, j + 1]) / 2
+#     return a_bound
+# end
+# 
+# function get_flux(ρ::Array{T, 2}, s::Array{T, 2}, v::Array{T, 2},
+#         j::Integer) where T<:AbstractFloat
+#     ρ_bound = get_boundary(ρ, j)
+#     s_bound = get_boundary(s, j)
+#     v_bound = get_boundary(v, j)
+#     return ρ_bound ./ s_bound .* v_bound
+# end
+# 
+# function get_total_flux(sys::System, p::Parameters)
+#     flux_init  = zeros(2, p.nx)
+#     flux_final = zeros(2, p.nx)
+#     for k = 1 : 2
+#         flux_init[k, :]  = get_flux(sys.ρ[:, :, k],
+#                                     sys.s[:, :, k],
+#                                     sys.v[:, :, k], 1)
+#         flux_final[k, :] = get_flux(sys.ρ[:, :, k],
+#                                     sys.s[:, :, k],
+#                                     sys.v[:, :, k], p.ny - 1)
+#     end
+#     flux_init_total  = sum(flux_init,  dims = 2)
+#     flux_final_total = sum(flux_final, dims = 2)
+#     return flux_init_total, flux_final_total
+# end
 
 function get_content_inside(sys::System, p::Parameters)
     content = zeros(2)
-    @views content[1] = sum(sys.ρ[:, :, 1] ./ sys.s[:, :, 1])
-    @views content[2] = sum(sys.ρ[:, :, 2] ./ sys.s[:, :, 2])
+
+    for k = 1 : 2
+        content[k] = sum(sys.ρ[2 : nx - 1, 2 : ny - 1, k])
+    end
+
     return content
+end
+
+function get_flux_in_out(sys::System, p::Parameters)
+    flux_init  = zeros(2)
+    flux_final = zeros(2)
+
+    for k = 1 : 2
+        flux_init[k]  = sum(sys.Φv[2 : nx - 1, 1, k])
+        flux_final[k] = sum(sys.Φv[2 : nx - 1, ny, k])
+    end
+
+    return flux_init, flux_final
 end
 # -------------------------------------------------------- #

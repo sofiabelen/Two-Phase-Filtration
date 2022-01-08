@@ -54,43 +54,16 @@ function check_bc(bc::BoundaryCondition, var::String)
 end
 
 function check_bc(bc::BoundaryConditions{T}) where T<:AbstractFloat
-    check_bc(bc.u, "u")
-    check_bc(bc.v, "v")
+    # check_bc(bc.u, "u")
+    # check_bc(bc.v, "v")
     check_bc(bc.ρ, "ρ")
     check_bc(bc.s, "s")
     check_bc(bc.P, "P")
 end
 
-function check_continuity(syswork::System, sysnext::System,
-        p::Parameters, t::Integer)
-    flux_init_work, flux_final_work = get_total_flux(syswork, p)
-    content_work = get_content_inside(syswork, p)
-    flux_init_next, flux_final_next = get_total_flux(sysnext, p)
-    content_next = get_content_inside(sysnext, p)
-
-    influx_work  = flux_init_work  * p.Δx * p.Δt
-    outflux_work = flux_final_work * p.Δx * p.Δt
-    inside_work  = content_next    * p.Δx * p.Δy
-
-    influx_next  = flux_init_next  * p.Δx * p.Δt
-    outflux_next = flux_final_next * p.Δx * p.Δt
-    inside_next  = content_next    * p.Δx * p.Δy
-
-    mass_work = influx_work - outflux_work + inside_work
-    mass_next = influx_next - outflux_next + inside_next
-    # println(mass_work, mass_next)
-    diff = abs.(mass_work - mass_next)
-
-    if t == 1
-        io = open("../dump/mass.txt", "w")
-        write(io, "m1 m2\n")
-    else
-        io = open("../dump/mass.txt", "a+")
-    end
-    write(io, string(mass_work[1]), " ", string(mass_work[2]), "\n")
-
-    # eps = 0.001
-    # if any(x -> x > eps, abs.(mass_work - mass_next))
-    #     return error("Continuity equation breaks ", diff)
-    # end
+function check(syswork::System, sysnext::System,
+        p::Parameters, t::Int)
+        check_saturation(syswork, p)
+        check_density(syswork, p)
+        check_pressure(syswork)
 end

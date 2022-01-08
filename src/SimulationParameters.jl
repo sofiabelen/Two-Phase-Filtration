@@ -19,7 +19,10 @@ export Δt, nsteps, L, nx, ny, Δx, Δy, φ, K, μ, Pin, Pout,
 # nsteps = 320000
 nsteps = 1000
 
-relax_steps = 100
+relax_t = 100
+relax_steps = round(Int, relax_t / Δt)
+println("relax steps: ", relax_steps)
+# relax_steps = 100
 
 ## Space grid [0, 2] × [0, 2]
 L = 2
@@ -55,19 +58,19 @@ M = [MOLAR_MASS_IGAS, MOLAR_MASS_PENTANE]
 
 ## -------------------------- BC -------------------------- ##
 
-# inlet = 1 : nx ÷ 2
-# wall  = nx ÷ 2 + 1: nx
-inlet = 1 : nx
-wall  = nx: nx
+inlet = 1 : nx ÷ 2
+wall  = nx ÷ 2 + 1: nx
+# inlet = 1 : nx
+# wall  = nx: nx
 
-a_u = zeros(max(nx, ny), 4, 2)
-a_v = zeros(max(nx, ny), 4, 2)
+# a_u = zeros(max(nx, ny), 4, 2)
+# a_v = zeros(max(nx, ny), 4, 2)
 a_ρ = zeros(max(nx, ny), 4, 2)
 a_s = zeros(max(nx, ny), 4, 2)
 a_P = zeros(max(nx, ny), 4, 2)
                         
-b_u = zeros(max(nx, ny), 4, 2)
-b_v = zeros(max(nx, ny), 4, 2)
+# b_u = zeros(max(nx, ny), 4, 2)
+# b_v = zeros(max(nx, ny), 4, 2)
 b_ρ = zeros(max(nx, ny), 4, 2)
 b_s = zeros(max(nx, ny), 4, 2)
 b_P = zeros(max(nx, ny), 4, 2)
@@ -82,11 +85,9 @@ b_P = zeros(max(nx, ny), 4, 2)
 
 k = 1 : 2
 
-## top & bottom
-@views a_v[:, :, k]     .= 1
-
-## left & right
-@views a_u[:, :, k]     .= 1
+## velocities all
+# @views a_v[:, :, k]     .= 1
+# @views a_u[:, :, k]     .= 1
 
 ## left & right & top & bottom
 @views a_ρ[:, :, k]     .= 1
@@ -110,11 +111,11 @@ k = 1 : 2
 ## bottom wall
 @views b_P[wall, 4, k]  .= 1
 
-u_bc = BoundaryCondition(a_u, b_u)
-v_bc = BoundaryCondition(a_v, b_v)
+# u_bc = BoundaryCondition(a_u, b_u)
+# v_bc = BoundaryCondition(a_v, b_v)
 ρ_bc = BoundaryCondition(a_ρ, b_ρ)
 s_bc = BoundaryCondition(a_s, b_s)
 P_bc = BoundaryCondition(a_P, b_P)
 
-bc = BoundaryConditions(u_bc, v_bc, ρ_bc, s_bc, P_bc)
+bc = BoundaryConditions(ρ_bc, s_bc, P_bc)
 end

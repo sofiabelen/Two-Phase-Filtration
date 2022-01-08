@@ -2,6 +2,23 @@ include("structs.jl")
 
 using PyPlot
 
+function extrapolate_velocities(u::AbstractArray{T, 3},
+        v::AbstractArray{T, 3}, p::Parameters) where T<:AbstractFloat
+    u_extrap = zeros(nx - 2, ny - 2, 2)
+    v_extrap = zeros(nx - 2, ny - 2, 2)
+
+    for i = 1 : nx - 2
+        @views @. u_extrap[i, :, :] = (u[i,     2 : ny - 1, :]  +
+                                       u[i + 1, 2 : ny - 1, :]) / 2
+    end
+    
+    for j = 1 : ny - 2
+        @views @. v_extrap[:, j, :] = (v[2 : nx - 1, j, :] +
+                                       v[2 : nx - 1, j + 1, :]) / 2
+    end
+    return u_extrap, v_extrap
+end
+
 function plot_density(u::AbstractArray{T, 3},
         v::AbstractArray{T, 3},
         ρ::AbstractArray{T, 3},
@@ -11,24 +28,33 @@ function plot_density(u::AbstractArray{T, 3},
     axs[1].set_xlabel("x, m")
     axs[1].set_ylabel("y, m")
 
-    rgx = range(0, 2, length=p.nx)
-    rgy = range(0, 2, length=p.ny)
-    x = [rgx;]'
-    y = [rgy;]'
-    X = repeat([rgx;]', length(x))
-    Y = repeat([rgy;],1, length(y))
+    rgx = range(0, 2, length = p.nx - 2)
+    rgy = range(0, 2, length = p.ny - 2)
+    x  = [rgx;]'
+    y  = [rgy;]'
+    X  = repeat([rgx;]', length(x))
+    Y  = repeat([rgy;],1, length(y))
     
     axs[1].set_ylabel(L"$y, (m)$")
+
     @views ρ̂ = ρ ./s
+    @views ρ̂_inside = ρ̂[2 : nx - 1, 2 : ny - 1, :]
+
+    u_extrap, v_extrap = extrapolate_velocities(u, v, p)
+
     for k = 1 : 2
         axs[k].set_xlabel(L"$x, (m)$")
-        axs[k].quiver(x, y, u[:, :, k]', v[:, :, k]')
-        pos = axs[k].contourf(X, Y, ρ̂[:, :, k]',
+        axs[k].quiver(x, y, u_extrap[:, :, k]', v_extrap[:, :, k]')
+
+        pos = axs[k].contourf(X, Y, ρ̂_inside[:, :, k]',
                               cmap=matplotlib.cm.viridis,
                               alpha=0.5)
-        axs[k].contour(X, Y, ρ̂[:, :, k]',
+
+        axs[k].contour(X, Y, ρ̂_inside[:, :, k]',
                        cmap=matplotlib.cm.viridis)
-        fig.colorbar(pos, ax=axs[k], label=L"$\rho, \left(\frac{kg}{m^3}\right)$")
+
+        fig.colorbar(pos, ax=axs[k],
+                     label=L"$\rho, \left(\frac{kg}{m^3}\right)$")
     end
 
     # fig.suptitle("Профиль плотностей и поле скоростей")
@@ -45,19 +71,21 @@ function plot_pressure(u::AbstractArray{T, 3},
     fig = PyPlot.figure(figsize=(9, 8))
     ax = PyPlot.axes()
     
-    rgx = range(0, 2, length=p.nx)
-    rgy = range(0, 2, length=p.ny)
+    rgx = range(0, 2, length=p.nx - 2)
+    rgy = range(0, 2, length=p.ny - 2)
     x = [rgx;]'
     y = [rgy;]'
     X = repeat([rgx;]', length(x))
     Y = repeat([rgy;],1, length(y))
+
+    u_extrap, v_extrap = extrapolate_velocities(u, v, p)
+    P_inside = P[2 : nx - 1, 2 : ny - 1]
     
     ## Velocity vector field
-    # scale = 100.0
-    quiver(x, y, u[:, :, 1]', v[:, :, 1]', color="r")
-    quiver(x, y, u[:, :, 2]', v[:, :, 2]', color="b")
+    quiver(x, y, u_extrap[:, :, 1]', v_extrap[:, :, 1]', color="r")
+    quiver(x, y, u_extrap[:, :, 2]', v_extrap[:, :, 2]', color="b")
     
-    pos = ax.contourf(X, Y, P',
+    pos = ax.contourf(X, Y, P_inside',
         cmap=matplotlib.cm.viridis, alpha=0.5)
     fig.colorbar(pos, ax=ax, label="Pressure")
     

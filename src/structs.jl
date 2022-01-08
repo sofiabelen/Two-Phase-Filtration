@@ -46,8 +46,9 @@ end
 
 ## Here we keep the parameters a and b for each variable.
 struct BoundaryConditions{T}
-    u::BoundaryCondition{T}
-    v::BoundaryCondition{T}
+    ## We don't need these thanks to our staggered grid
+    # u::BoundaryCondition{T}
+    # v::BoundaryCondition{T}
     ρ::BoundaryCondition{T}
     s::BoundaryCondition{T}
     P::BoundaryCondition{T}
@@ -55,15 +56,15 @@ end
 
 ## f_RHS == g
 mutable struct BoundaryRHS{T}
-    u::Array{T, 3}
-    v::Array{T, 3}
+    # u::Array{T, 3}
+    # v::Array{T, 3}
     ρ::Array{T, 3}
     s::Array{T, 3}
     P::Array{T, 3}
 end
 
-Base.copy(bc_RHS::BoundaryRHS) = BoundaryRHS(copy.((bc_RHS.u,
-                                                    bc_RHS.v,
+Base.copy(bc_RHS::BoundaryRHS) = BoundaryRHS(copy.((## bc_RHS.u,
+                                                    ## bc_RHS.v,
                                                     bc_RHS.ρ,
                                                     bc_RHS.s,
                                                     bc_RHS.P,))... )
@@ -77,11 +78,16 @@ mutable struct System{T<:AbstractFloat}
     F::Array{T, 3}
     s::Array{T, 3}
     P::Array{T, 2}
+    ## Mass flux along x axis
+    Φu::Array{T, 3}
+    ## Mass flux along x axis
+    Φv::Array{T, 3}
     bc_RHS::BoundaryRHS{T}
 end
 
 Base.copy(sys::System) = System(copy.((sys.u, sys.v, sys.ρ,
                                        sys.F, sys.s, sys.P,
+                                       sys.Φu, sys.Φv,
                                        sys.bc_RHS))... )
 
 struct Parameters{T<:AbstractFloat}
