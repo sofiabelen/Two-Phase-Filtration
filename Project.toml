@@ -1,3 +1,5 @@
 [deps]
 CubicEoS = "0772a1fa-d924-41f2-9f07-889679823dc5"
 DelimitedFiles = "8bb1440f-4735-579b-a4ab-409b98df4dab"
+Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
+PyPlot = "d330b81b-6aea-500a-939a-2ce795aea3ee"
