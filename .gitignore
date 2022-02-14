@@ -1,8 +1,5 @@
-dump
-presentation
-gos-exam
+dump*
 img-backup*
-thesis
 doc/*aux
 doc/*fls
 doc/*fdb_latexmk
