@@ -1,4 +1,9 @@
+module SimulationParameters
+
 include("physics.jl")
+
+export Δt, nsteps, L, nx, ny, Δx, Δy, φ, K, μ, Pin, Pout,
+       P₀, M, ψ, ψ₀, bc, inlet, wall, relax_steps
 
 ## CFL condition: dt ∼ dx² !!
 
@@ -55,16 +60,14 @@ M = [MOLAR_MASS_IGAS, MOLAR_MASS_PENTANE]
 
 boundary = 1 : nx
 
-# inlet = 1 : nx ÷ 2
-# wall  = nx ÷ 2 + 1: nx
-# inlet = nx ÷ 3 + 1: 2 * nx ÷ 3
-
-# inlet = nx ÷ 3 + 1 : 2 * nx ÷ 3
 inlet = 1 : nx ÷ 2
-print("inlet: ", inlet)
+wall  = nx ÷ 2 + 1: nx
+# inlet = nx ÷ 3 + 1: 2 * nx ÷ 3
+# inlet = 1 : nx
+# wall  = nx: nx
 # This works as if we had an array of 'inlet'
 # the same size of boundary
-wall = boundary[.!in.(boundary, Ref(inlet))]
+#wall = boundary[.!in.(boundary, Ref(inlet))]
 
 ## mask : (1:10)[rand(Bool, 10)]
 
@@ -98,6 +101,7 @@ k = 1 : 2
 @views a_ρ[:, :, k]     .= 1
 
 ## inlet at bottom [1, nx ÷ 2]
+for m = 1 : n_in
 @views a_s[inlet, 4, k] .= 1
 
 ## walls & outlet
@@ -123,3 +127,4 @@ s_bc = BoundaryCondition(a_s, b_s)
 P_bc = BoundaryCondition(a_P, b_P)
 
 bc = BoundaryConditions(ρ_bc, s_bc, P_bc)
+end

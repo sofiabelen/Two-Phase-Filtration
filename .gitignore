@@ -1,3 +1,5 @@
+dump*
+img-backup*
 doc/*aux
 doc/*fls
 doc/*fdb_latexmk

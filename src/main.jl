@@ -2,15 +2,13 @@ include("cfd.jl")
 include("structs.jl")
 include("thermo.jl")
 include("dump.jl")
-include("plot.jl")
+# include("plot.jl")
 include("test.jl")
 include("SimulationParameters.jl")
 
 ## https://stackoverflow.com/questions/37200025/how-to-import-custom-module-in-julia
-using DelimitedFiles, ..SimulationParameters
+using DelimitedFiles
 using Printf
-sp = SimulationParameters
-
 
 function update!(syswork::System, sysnext::System, p::Parameters,
     t::Integer)
@@ -74,78 +72,78 @@ end
 
 function main(p)
     sys = filtration(p)
-    plot(sys, p)
+    # plot(sys, p)
     dump(sys, p)
 end
 
 ## -------------------------- BC -------------------------- ##
 
-# a_u = zeros(max(nx, ny), 4, 2)
-# a_v = zeros(max(nx, ny), 4, 2)
-a_ρ = zeros(max(nx, ny), 4, 2)
-a_s = zeros(max(nx, ny), 4, 2)
-a_P = zeros(max(nx, ny), 4, 2)
-                        
-# b_u = zeros(max(nx, ny), 4, 2)
-# b_v = zeros(max(nx, ny), 4, 2)
-b_ρ = zeros(max(nx, ny), 4, 2)
-b_s = zeros(max(nx, ny), 4, 2)
-b_P = zeros(max(nx, ny), 4, 2)
-
-## h[:][1][k] -> left
-## 
-## h[:][2][k] -> right
-## 
-## h[:][3][k] -> top
-## 
-## h[:][4][k] -> bottom
-
-k = 1 : 2
-
-## velocities all
-# @views a_v[:, :, k]     .= 1
-# @views a_u[:, :, k]     .= 1
-
-## left & right & top & bottom
-@views a_ρ[:, :, k]     .= 1
-
-## inlet at bottom [1, nx ÷ 2]
-@views a_s[inlet, 4, k] .= 1
-
-## walls & outlet
-@views b_s[:, 1:3,  k]  .= 1
-@views b_s[wall, 4, k]  .= 1
-
-## outlet
-@views a_P[:, 3, k]     .= 1
-
-## inlet
-@views a_P[inlet, 4, k] .= 1
-
-## walls left & right
-@views b_P[:, 1:2, k]   .= 1
-
-## bottom wall
-@views b_P[wall, 4, k]  .= 1
-
-# u_bc = BoundaryCondition(a_u, b_u)
-# v_bc = BoundaryCondition(a_v, b_v)
-ρ_bc = BoundaryCondition(a_ρ, b_ρ)
-s_bc = BoundaryCondition(a_s, b_s)
-P_bc = BoundaryCondition(a_P, b_P)
-
-bc = BoundaryConditions(ρ_bc, s_bc, P_bc)
+# # a_u = zeros(max(nx, ny), 4, 2)
+# # a_v = zeros(max(nx, ny), 4, 2)
+# a_ρ = zeros(max(nx, ny), 4, 2)
+# a_s = zeros(max(nx, ny), 4, 2)
+# a_P = zeros(max(nx, ny), 4, 2)
+#                         
+# # b_u = zeros(max(nx, ny), 4, 2)
+# # b_v = zeros(max(nx, ny), 4, 2)
+# b_ρ = zeros(max(nx, ny), 4, 2)
+# b_s = zeros(max(nx, ny), 4, 2)
+# b_P = zeros(max(nx, ny), 4, 2)
+# 
+# ## h[:][1][k] -> left
+# ## 
+# ## h[:][2][k] -> right
+# ## 
+# ## h[:][3][k] -> top
+# ## 
+# ## h[:][4][k] -> bottom
+# 
+# k = 1 : 2
+# 
+# ## velocities all
+# # @views a_v[:, :, k]     .= 1
+# # @views a_u[:, :, k]     .= 1
+# 
+# ## left & right & top & bottom
+# @views a_ρ[:, :, k]     .= 1
+# 
+# ## inlet at bottom [1, nx ÷ 2]
+# @views a_s[inlet, 4, k] .= 1
+# 
+# ## walls & outlet
+# @views b_s[:, 1:3,  k]  .= 1
+# @views b_s[wall, 4, k]  .= 1
+# 
+# ## outlet
+# @views a_P[:, 3, k]     .= 1
+# 
+# ## inlet
+# @views a_P[inlet, 4, k] .= 1
+# 
+# ## walls left & right
+# @views b_P[:, 1:2, k]   .= 1
+# 
+# ## bottom wall
+# @views b_P[wall, 4, k]  .= 1
+# 
+# # u_bc = BoundaryCondition(a_u, b_u)
+# # v_bc = BoundaryCondition(a_v, b_v)
+# ρ_bc = BoundaryCondition(a_ρ, b_ρ)
+# s_bc = BoundaryCondition(a_s, b_s)
+# P_bc = BoundaryCondition(a_P, b_P)
+# 
+# bc = BoundaryConditions(ρ_bc, s_bc, P_bc)
 
 ## Problem!!
 ## https://discourse.julialang.org/t/writing-functions-for-types-defined-in-another-module/31895/4
 ## https://discourse.julialang.org/t/structs-in-modules/34317
-println("TODO: fix problem")
-println("typeof(sp.bc): ", typeof(sp.bc))
-println("typeof(bc): ", typeof(bc))
+# println("TODO: fix problem")
+# println("typeof(sp.bc): ", typeof(sp.bc))
+# println("typeof(bc): ", typeof(bc))
 
-p = Parameters(sp.nsteps, sp.nx, sp.ny, sp.L, sp.Δx,
-               sp.Δy, sp.Δt, sp.φ, sp.K, sp.Pin,
-               sp.Pout, sp.P₀, sp.ψ, sp.ψ₀, sp.M, sp.μ,
-               bc, sp.wall, sp.inlet, sp.relax_steps)
+p = Parameters(nsteps, nx, ny, L, Δx,
+               Δy, Δt, φ, K, Pin,
+               Pout, P₀, ψ, ψ₀, M, μ,
+               bc, wall, inlet, relax_steps)
 
 main(p)

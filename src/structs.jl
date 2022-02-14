@@ -108,7 +108,7 @@ struct Parameters{T<:AbstractFloat}
     M::Vector{T}
     μ::Vector{T}
     bc::BoundaryConditions{T}
-    wall::UnitRange{Int}
+    wall::Vector{Int}
     inlet::UnitRange{Int}
     relax_steps::Integer
 end

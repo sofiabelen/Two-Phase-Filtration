@@ -253,7 +253,8 @@ function update_RHS_saturation!(s_RHS::Array{T, 3}, P::Array{T, 2},
         p::Parameters, t::Integer) where T<:AbstractFloat
     ## bottom inlet
     @views update_RHS_saturation!(s_RHS = s_RHS[p.inlet, 4, :],
-                           P = fill(p.Pin, last(collect(p.inlet))),
+                                  P = fill(p.Pin, last(p.inlet) -
+                                           first(p.inlet) + 1),
                            p = p, t = t)
     ## everywhere else we don't have to do anything because
     ## ∂s / ∂n = 0

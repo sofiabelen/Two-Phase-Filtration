@@ -112,3 +112,5 @@ function newton_raphson(; f::Function, fder::Function,
                  " delta x = ", abs(x₀ - xs[niter - 1]))
 end
 # -------------------------------------------------------- #
+#
+# Todo: Ridders' method
